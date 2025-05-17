@@ -1,7 +1,7 @@
 defmodule AstroEquations.MixProject do
   use Mix.Project
 
-  @source_url "https://github.com/iamkanishka/appwrite"
+  @source_url "https://github.com/iamkanishka/astroeqex"
   @version "0.1.0"
 
   def project do
@@ -12,7 +12,7 @@ defmodule AstroEquations.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description:
-        " A collection of core equations and constants from astronomy, astrophysics, and cosmology .",
+        " A collection of core equations and constants from astronomy, astrophysics, and cosmology.",
       package: package()
     ]
   end
