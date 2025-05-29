@@ -1,0 +1,3 @@
+defmodule AstroEquations.AstrophysicsAndAstronomy.InstrumentaionTest do
+
+end
