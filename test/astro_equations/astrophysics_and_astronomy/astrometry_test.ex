@@ -1,0 +1,2 @@
+defmodule AstroEquations.AstrophysicsAndAstronomy.AstrometryTest do
+end
