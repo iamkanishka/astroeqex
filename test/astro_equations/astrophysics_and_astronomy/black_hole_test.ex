@@ -1,0 +1,3 @@
+defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHoleTest do
+
+end
