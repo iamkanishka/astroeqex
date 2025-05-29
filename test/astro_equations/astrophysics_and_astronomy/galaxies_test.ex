@@ -1,0 +1,3 @@
+defmodule AstroEquations.AstrophysicsAndAstronomy.GalaxiesTest do
+
+end
