@@ -21,3 +21,5 @@ astro_equations-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+notes.md
