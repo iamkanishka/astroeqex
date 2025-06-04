@@ -196,4 +196,116 @@ defmodule AstroEquations.Physics.ElectromagnetismTest do
                {1.25663706212e-7, 0.0, 0.0}
     end
   end
+
+  describe "gauss_law_polarization/2" do
+    test "calculates bound charge for perpendicular vectors" do
+      assert AstroEquations.Physics.Electromagnetism.gauss_law_polarization([1, 0, 0], [1, 0, 0]) ==
+               -1.0
+
+      assert AstroEquations.Physics.Electromagnetism.gauss_law_polarization([0, 2, 0], [0, 3, 0]) ==
+               -6.0
+    end
+
+    test "returns zero for orthogonal vectors" do
+      assert AstroEquations.Physics.Electromagnetism.gauss_law_polarization([1, 0, 0], [0, 1, 0]) ==
+               0.0
+    end
+  end
+
+  describe "gauss_law_displacement/2" do
+    test "calculates free charge for perpendicular vectors" do
+      assert AstroEquations.Physics.Electromagnetism.gauss_law_displacement([1, 0, 0], [1, 0, 0]) ==
+               1.0
+
+      assert AstroEquations.Physics.Electromagnetism.gauss_law_displacement([0, 2, 0], [0, 3, 0]) ==
+               6.0
+    end
+
+    test "returns zero for orthogonal vectors" do
+      assert AstroEquations.Physics.Electromagnetism.gauss_law_displacement([1, 0, 0], [0, 1, 0]) ==
+               0.0
+    end
+  end
+
+  describe "relative_permittivity/2" do
+    test "calculates relative permittivity" do
+      assert AstroEquations.Physics.Electromagnetism.relative_permittivity(1.77e-11, 8.854e-12) ==
+               2.0
+    end
+  end
+
+  describe "electric_susceptibility/1" do
+    test "calculates electric susceptibility" do
+      assert AstroEquations.Physics.Electromagnetism.electric_susceptibility(2.0) == 1.0
+      assert AstroEquations.Physics.Electromagnetism.electric_susceptibility(1.0) == 0.0
+    end
+  end
+
+  describe "absolute_permittivity/2" do
+    test "calculates absolute permittivity" do
+      assert_in_delta AstroEquations.Physics.Electromagnetism.absolute_permittivity(
+                        2.0,
+                        8.854e-12
+                      ),
+                      1.7708e-11,
+                      1.0e-15
+    end
+  end
+
+  describe "polarization/4" do
+    test "calculates from susceptibility and electric field" do
+      assert Maxwell.Materials.polarization(1.0, [1, 0, 0]) ==
+               [8.8541878128e-12, 0.0, 0.0]
+    end
+
+    test "calculates from dipole moment density" do
+      assert Maxwell.Materials.polarization(0, [0, 0, 0], 1.0e28, [1.0e-29, 0.0, 0.0]) ==
+               [1.0e-1, 0.0, 0.0]
+    end
+  end
+
+  describe "surface_bound_charge/2" do
+    test "calculates surface bound charge" do
+      assert Maxwell.Materials.surface_bound_charge([1, 2, 3], [0, 1, 0]) == 2.0
+      assert Maxwell.Materials.surface_bound_charge([1, 1, 1], [1, 1, 1]) == 3.0
+    end
+  end
+
+  describe "volume_bound_charge/2" do
+    test "approximates volume bound charge" do
+      assert Maxwell.Materials.volume_bound_charge([[1, 0, 0], [1.1, 0, 0]], 1.0e-3) == -100.0
+    end
+  end
+
+  describe "electric_displacement/3" do
+    test "calculates from permittivity" do
+      assert Maxwell.Materials.electric_displacement(2.0, [1, 0, 0]) == [2.0, 0.0, 0.0]
+    end
+
+    test "calculates with polarization" do
+      assert Maxwell.Materials.electric_displacement(1.0, [1, 0, 0], [0.5, 0, 0]) == [
+               1.5,
+               0.0,
+               0.0
+             ]
+    end
+  end
+
+  describe "magnetic_field_strength/2" do
+    test "calculates without magnetization" do
+      h = Maxwell.Materials.magnetic_field_strength([1.0, 0, 0])
+      assert_in_delta h |> hd(), 795_774.715, 0.001
+    end
+
+    test "calculates with magnetization" do
+      h = Maxwell.Materials.magnetic_field_strength([1.0, 0, 0], [1000, 0, 0])
+      assert_in_delta h |> hd(), 794_774.715, 0.001
+    end
+  end
+
+  describe "bound_surface_current/2" do
+    test "calculates surface current" do
+      assert Maxwell.Materials.bound_surface_current([0, 0, 1], [1, 0, 0]) == [0.0, 1.0, 0.0]
+    end
+  end
 end
