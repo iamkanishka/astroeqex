@@ -7,7 +7,7 @@ defmodule AstroEquations.Physics.Forces do
     - gravity: Acceleration due to gravity (m/s²), defaults to 9.81
 
   ## Examples
-      iex> Physics.buoyancy(5)
+      iex> AstroEquations.Physics.Forces.buoyancy(5)
       49.05
   """
   @spec buoyancy(number, number) :: float
@@ -24,7 +24,7 @@ defmodule AstroEquations.Physics.Forces do
     - gravity: Acceleration due to gravity (m/s²), defaults to 9.81
 
   ## Examples
-      iex> Physics.buoyancy_from_density(1000, 0.005)
+      iex> AstroEquations.Physics.Forces.buoyancy_from_density(1000, 0.005)
       49.05
   """
   @spec buoyancy_from_density(number, number, number) :: float
@@ -40,7 +40,7 @@ defmodule AstroEquations.Physics.Forces do
     - normal_force: Normal force (N)
 
   ## Examples
-      iex> Physics.kinetic_friction(0.3, 10)
+      iex> AstroEquations.Physics.Forces.kinetic_friction(0.3, 10)
       3.0
   """
   @spec kinetic_friction(number, number) :: float
@@ -56,7 +56,7 @@ defmodule AstroEquations.Physics.Forces do
     - normal_force: Normal force (N)
 
   ## Examples
-      iex> Physics.static_friction(0.4, 10)
+      iex> AstroEquations.Physics.Forces.static_friction(0.4, 10)
       4.0
   """
   @spec static_friction(number, number) :: float
