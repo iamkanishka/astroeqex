@@ -30,7 +30,7 @@ defmodule AstroEquations.Physics.Motion do
     Velocity in m/s
 
   ## Examples
-      iex> Physics.Motion.velocity(10, 2)
+      iex> AstroEquations.Physics.Motion.velocity(10, 2)
       5.0
   """
   def velocity(displacement, time) do
@@ -48,7 +48,7 @@ defmodule AstroEquations.Physics.Motion do
     Acceleration in m/s²
 
   ## Examples
-      iex> Physics.Motion.acceleration(20, 5)
+      iex> AstroEquations.Physics.Motion.acceleration(20, 5)
       4.0
   """
   def acceleration(delta_v, time) do
@@ -66,7 +66,7 @@ defmodule AstroEquations.Physics.Motion do
     Force in Newtons
 
   ## Examples
-      iex> Physics.Motion.newtons_second_law(5, 2)
+      iex> AstroEquations.Physics.Motion.newtons_second_law(5, 2)
       10.0
   """
   def newtons_second_law(mass, acceleration) do
@@ -84,7 +84,7 @@ defmodule AstroEquations.Physics.Motion do
     Momentum in kg·m/s
 
   ## Examples
-      iex> Physics.Motion.momentum(10, 5)
+      iex> AstroEquations.Physics.Motion.momentum(10, 5)
       50.0
   """
   def momentum(mass, velocity) do
@@ -102,7 +102,7 @@ defmodule AstroEquations.Physics.Motion do
     Change in momentum in kg·m/s
 
   ## Examples
-      iex> Physics.Motion.impulse(10, 5)
+      iex> AstroEquations.Physics.Motion.impulse(10, 5)
       50.0
   """
   def impulse(force, time) do
@@ -121,7 +121,7 @@ defmodule AstroEquations.Physics.Motion do
     Centripetal force in Newtons
 
   ## Examples
-      iex> Physics.Motion.centripetal_force(2, 5, 10)
+      iex> AstroEquations.Physics.Motion.centripetal_force(2, 5, 10)
       5.0
   """
   def centripetal_force(mass, velocity, radius) do
@@ -139,7 +139,7 @@ defmodule AstroEquations.Physics.Motion do
     Kinetic energy in Joules
 
   ## Examples
-      iex> Physics.Motion.kinetic_energy(4, 5)
+      iex> AstroEquations.Physics.Motion.kinetic_energy(4, 5)
       50.0
   """
   def kinetic_energy(mass, velocity) do
@@ -157,7 +157,7 @@ defmodule AstroEquations.Physics.Motion do
     Angular velocity in rad/s
 
   ## Examples
-      iex> Physics.Rotation.angular_velocity(:math.pi(), 2)
+      iex> AstroEquations.Physics.Motion.angular_velocity(:math.pi(), 2)
       1.5707963267948966
   """
   def angular_velocity(angular_displacement, time) do
@@ -175,7 +175,7 @@ defmodule AstroEquations.Physics.Motion do
     Angular acceleration in rad/s²
 
   ## Examples
-      iex> Physics.Rotation.angular_acceleration(4, 2)
+      iex> AstroEquations.Physics.Motion.angular_acceleration(4, 2)
       2.0
   """
   def angular_acceleration(delta_omega, time) do
@@ -193,7 +193,7 @@ defmodule AstroEquations.Physics.Motion do
     Moment of inertia in kg·m²
 
   ## Examples
-      iex> Physics.Rotation.point_mass_moment_of_inertia(2, 3)
+      iex> AstroEquations.Physics.Motion.point_mass_moment_of_inertia(2, 3)
       18.0
   """
   def point_mass_moment_of_inertia(mass, radius) do
@@ -211,7 +211,7 @@ defmodule AstroEquations.Physics.Motion do
     Total moment of inertia in kg·m²
 
   ## Examples
-      iex> Physics.Rotation.multiple_point_masses_moment_of_inertia([1, 2], [3, 4])
+      iex> AstroEquations.Physics.Motion.multiple_point_masses_moment_of_inertia([1, 2], [3, 4])
       35.0
   """
   def multiple_point_masses_moment_of_inertia(masses, radii) do
@@ -230,7 +230,7 @@ defmodule AstroEquations.Physics.Motion do
     Moment of inertia in kg·m²
 
   ## Examples
-      iex> Physics.Rotation.thin_disk_moment_of_inertia(4, 2)
+      iex> AstroEquations.Physics.Motion.thin_disk_moment_of_inertia(4, 2)
       8.0
   """
   def thin_disk_moment_of_inertia(mass, radius) do
@@ -248,7 +248,7 @@ defmodule AstroEquations.Physics.Motion do
     Moment of inertia in kg·m²
 
   ## Examples
-      iex> Physics.Rotation.thin_loop_moment_of_inertia(3, 2)
+      iex> AstroEquations.Physics.Motion.thin_loop_moment_of_inertia(3, 2)
       12.0
   """
   def thin_loop_moment_of_inertia(mass, radius) do
@@ -266,7 +266,7 @@ defmodule AstroEquations.Physics.Motion do
     Moment of inertia in kg·m²
 
   ## Examples
-      iex> Physics.Rotation.thin_rod_center_moment_of_inertia(6, 2)
+      iex> AstroEquations.Physics.Motion.thin_rod_center_moment_of_inertia(6, 2)
       2.0
   """
   def thin_rod_center_moment_of_inertia(mass, length) do
@@ -284,7 +284,7 @@ defmodule AstroEquations.Physics.Motion do
     Moment of inertia in kg·m²
 
   ## Examples
-      iex> Physics.Rotation.thin_rod_end_moment_of_inertia(6, 2)
+      iex> AstroEquations.Physics.Motion.thin_rod_end_moment_of_inertia(6, 2)
       8.0
   """
   def thin_rod_end_moment_of_inertia(mass, length) do
@@ -302,7 +302,7 @@ defmodule AstroEquations.Physics.Motion do
     Rotational kinetic energy in Joules
 
   ## Examples
-      iex> Physics.Rotation.rotational_kinetic_energy(2, 3)
+      iex> AstroEquations.Physics.Motion.rotational_kinetic_energy(2, 3)
       9.0
   """
   def rotational_kinetic_energy(moment_of_inertia, angular_velocity) do
@@ -322,7 +322,7 @@ defmodule AstroEquations.Physics.Motion do
     Total kinetic energy in Joules
 
   ## Examples
-      iex> Physics.Rotation.total_kinetic_energy(2, 3, 4, 5)
+      iex> AstroEquations.Physics.Motion.total_kinetic_energy(2, 3, 4, 5)
       59.0
   """
   def total_kinetic_energy(mass, velocity, moment_of_inertia, angular_velocity) do
@@ -342,7 +342,7 @@ defmodule AstroEquations.Physics.Motion do
     Angular momentum in kg·m²/s
 
   ## Examples
-      iex> Physics.Rotation.angular_momentum(3, 4)
+      iex> AstroEquations.Physics.Motion.angular_momentum(3, 4)
       12.0
   """
   def angular_momentum(moment_of_inertia, angular_velocity) do
@@ -361,9 +361,9 @@ defmodule AstroEquations.Physics.Motion do
     Torque in N·m
 
   ## Examples
-      iex> Physics.Rotation.torque(10, 2)
+      iex> AstroEquations.Physics.Motion.torque(10, 2)
       20.0
-      iex> Physics.Rotation.torque(10, 2, :math.pi()/4)
+      iex> AstroEquations.Physics.Motion.torque(10, 2, :math.pi()/4)
       14.142135623730951
   """
   def torque(force, lever_arm, angle \\ :math.pi() / 2) do
@@ -382,7 +382,7 @@ defmodule AstroEquations.Physics.Motion do
     Final vertical velocity in m/s
 
   ## Examples
-      iex> Physics.AdvancedMotion.vertical_velocity(10, -9.8, 5)
+      iex> AstroEquations.Physics.Motion.vertical_velocity(10, -9.8, 5)
       8.280123850695517
   """
   def vertical_velocity(initial_vy, acceleration_y, delta_y) do
@@ -400,7 +400,7 @@ defmodule AstroEquations.Physics.Motion do
     Horizontal displacement in meters
 
   ## Examples
-      iex> Physics.AdvancedMotion.horizontal_displacement(15, 3)
+      iex> AstroEquations.Physics.Motion.horizontal_displacement(15, 3)
       45.0
   """
   def horizontal_displacement(initial_vx, time) do
@@ -419,7 +419,7 @@ defmodule AstroEquations.Physics.Motion do
     Vertical displacement in meters
 
   ## Examples
-      iex> Physics.AdvancedMotion.vertical_displacement(20, 2, -9.8)
+      iex> AstroEquations.Physics.Motion.vertical_displacement(20, 2, -9.8)
       20.4
   """
   def vertical_displacement(initial_vy, time, acceleration_y) do
@@ -437,7 +437,7 @@ defmodule AstroEquations.Physics.Motion do
     Lagrangian in Joules
 
   ## Examples
-      iex> Physics.AdvancedMotion.lagrangian(50, 20)
+      iex> AstroEquations.Physics.Motion.lagrangian(50, 20)
       30.0
   """
   def lagrangian(kinetic, potential) do
@@ -459,7 +459,7 @@ defmodule AstroEquations.Physics.Motion do
     Generalized momentum
 
   ## Examples
-      iex> Physics.AdvancedMotion.generalized_momentum(fn x -> 0.5 * x ** 2 end, 2)
+      iex> AstroEquations.Physics.Motion.generalized_momentum(fn x -> 0.5 * x ** 2 end, 2)
       2.0000000000575113
   """
   def generalized_momentum(lagrangian_func, q_dot, h \\ 1.0e-6) do
@@ -479,7 +479,7 @@ defmodule AstroEquations.Physics.Motion do
     Hamiltonian in Joules
 
   ## Examples
-      iex> Physics.AdvancedMotion.hamiltonian([2, 3], [1.5, 2], 10)
+      iex> AstroEquations.Physics.Motion.hamiltonian([2, 3], [1.5, 2], 10)
       2.0
   """
   def hamiltonian(momenta, velocities, lagrangian) do
@@ -500,7 +500,7 @@ defmodule AstroEquations.Physics.Motion do
     Tuple of {dp/dt, dq/dt}
 
   ## Examples
-      iex> Physics.AdvancedMotion.hamiltons_equations(2, 3, 1.5)
+      iex> AstroEquations.Physics.Motion.hamiltons_equations(2, 3, 1.5)
       {-6.75, 2}
   """
   def hamiltons_equations(p, q, omega) do
