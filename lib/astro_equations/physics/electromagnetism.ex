@@ -11,6 +11,7 @@ defmodule AstroEquations.Physics.Electromagnetism do
   - Capacitor
   - Magnetic fields
   - Inductors
+  - Materials
 
   All calculations use SI units.
   """
@@ -23,6 +24,12 @@ defmodule AstroEquations.Physics.Electromagnetism do
   @elementary_charge 1.602176634e-19
   # Pi constant
   @pi :math.pi()
+
+  # F/m
+  @vacuum_permittivity 8.8541878128e-12
+
+  # N/A²
+  @vacuum_permeability 1.25663706212e-6
 
   @doc """
   Calculates the electric flux through a closed surface using Gauss's Law.
@@ -688,5 +695,314 @@ defmodule AstroEquations.Physics.Electromagnetism do
       factor * jy,
       factor * jz
     }
+  end
+
+  @doc """
+  Calculates the bound charge using Gauss's Law for polarization.
+
+  ## Parameters
+    - polarization_vector: The polarization vector P (in C/m²)
+    - surface_area: The surface area vector da (in m²)
+
+  ## Returns
+    The bound charge Q_b (in C)
+
+  ## Examples
+      iex> AstroEquations.Physics.Electromagnetism.gauss_law_polarization([1, 0, 0], [1, 0, 0])
+      -1.0
+  """
+  def gauss_law_polarization(polarization_vector, surface_area) do
+    dot_product =
+      Enum.zip(polarization_vector, surface_area)
+      |> Enum.map(fn {p, da} -> p * da end)
+      |> Enum.sum()
+
+    -dot_product
+  end
+
+  @doc """
+  Calculates the free charge using Gauss's Law for electric displacement.
+
+  ## Parameters
+    - displacement_vector: The electric displacement vector D (in C/m²)
+    - surface_area: The surface area vector da (in m²)
+
+  ## Returns
+    The free charge Q_f (in C)
+
+  ## Examples
+      iex> AstroEquations.Physics.Electromagnetism.gauss_law_displacement([1, 0, 0], [1, 0, 0])
+      1.0
+  """
+  def gauss_law_displacement(displacement_vector, surface_area) do
+    Enum.zip(displacement_vector, surface_area)
+    |> Enum.map(fn {d, da} -> d * da end)
+    |> Enum.sum()
+  end
+
+  @doc """
+  Calculates the relative permittivity (dielectric constant) of a material.
+
+  ## Parameters
+    - permittivity: The absolute permittivity ε of the material (in F/m)
+    - vacuum_permittivity: The permittivity of free space ε₀ (≈ 8.854×10⁻¹² F/m)
+
+  ## Returns
+    The relative permittivity (dimensionless)
+
+  ## Examples
+      iex> AstroEquations.Physics.Electromagnetism.relative_permittivity(1.77e-11, 8.854e-12)
+      2.0
+  """
+  def relative_permittivity(permittivity, vacuum_permittivity) do
+    permittivity / vacuum_permittivity
+  end
+
+  @doc """
+  Calculates the electric susceptibility of a material.
+
+  ## Parameters
+    - relative_permittivity: The relative permittivity εᵣ of the material
+
+  ## Returns
+    The electric susceptibility χₑ (dimensionless)
+
+  ## Examples
+      iex> AstroEquations.Physics.Electromagnetism.electric_susceptibility(2.0)
+      1.0
+  """
+  def electric_susceptibility(relative_permittivity) do
+    1 - relative_permittivity
+  end
+
+  @doc """
+  Calculates the absolute permittivity from relative permittivity.
+
+  ## Parameters
+    - relative_permittivity: The relative permittivity εᵣ of the material
+    - vacuum_permittivity: The permittivity of free space ε₀ (≈ 8.854×10⁻¹² F/m)
+
+  ## Returns
+    The absolute permittivity ε (in F/m)
+
+  ## Examples
+      iex> AstroEquations.Physics.Electromagnetism.absolute_permittivity(2.0, 8.854e-12)
+      1.7708e-11
+  """
+  def absolute_permittivity(relative_permittivity, vacuum_permittivity) do
+    relative_permittivity * vacuum_permittivity
+  end
+
+  @doc """
+  Calculates the polarization vector P.
+
+  ## Parameters
+    - chi_e: Electric susceptibility χₑ (dimensionless)
+    - electric_field: Electric field vector E (in V/m)
+    - n: Number density of dipoles (in m⁻³, optional)
+    - dipole_moment: Dipole moment vector p (in C·m, optional)
+
+  ## Returns
+    Polarization vector P (in C/m²)
+
+  ## Examples
+      iex> AstroEquations.Physics.Electromagnetism.polarization(1.0, [1, 0, 0])
+      [8.8541878128e-12, 0.0, 0.0]
+
+      iex> AstroEquations.Physics.Electromagnetism.polarization(1.0, [1, 0, 0], 1.0e28, [1.0e-29, 0.0, 0.0])
+      [1.0e-1, 0.0, 0.0]
+  """
+  def polarization(chi_e, electric_field, n \\ nil, dipole_moment \\ nil) do
+    if n && dipole_moment do
+      # P = n * p
+      Enum.map(dipole_moment, fn p -> n * p end)
+    else
+      # P = ε₀χₑE
+      Enum.map(electric_field, fn e -> @vacuum_permittivity * chi_e * e end)
+    end
+  end
+
+  @doc """
+  Calculates surface bound charge density σ_B.
+
+  ## Parameters
+    - polarization: Polarization vector P (in C/m²)
+    - normal_vector: Unit normal vector ̂n (dimensionless)
+
+  ## Returns
+    Surface bound charge density σ_B (in C/m²)
+
+  ## Examples
+      iex> AstroEquations.Physics.Electromagnetism.surface_bound_charge([1, 0, 0], [1, 0, 0])
+      1.0
+
+      iex> AstroEquations.Physics.Electromagnetism.surface_bound_charge([1, 2, 3], [0, 1, 0])
+      2.0
+  """
+  def surface_bound_charge(polarization, normal_vector) do
+    Enum.zip(polarization, normal_vector)
+    |> Enum.map(fn {p, n} -> p * n end)
+    |> Enum.sum()
+  end
+
+  @doc """
+  Calculates volume bound charge density ρ_B (approximation).
+
+  Note: This is a simplified approximation of the divergence.
+  For accurate calculations, use a proper numerical differentiation library.
+
+  ## Parameters
+    - polarization: Polarization vector P (in C/m²)
+    - delta_x: Spatial step size (in m)
+
+  ## Returns
+    Volume bound charge density ρ_B (in C/m³)
+
+  ## Examples
+      iex> AstroEquations.Physics.Electromagnetism.volume_bound_charge([[1, 0, 0], [1.1, 0, 0]], 1e-3)
+      -100.0
+  """
+  def volume_bound_charge(polarization_field, delta_x) do
+    # Simplified approximation of ∇·P ≈ ΔP/Δx
+    [p1, p2] = polarization_field
+    delta_p = Enum.zip(p1, p2) |> Enum.map(fn {a, b} -> b - a end)
+    -Enum.sum(delta_p) / delta_x
+  end
+
+  @doc """
+  Calculates total bound charge Q_B.
+
+  ## Parameters
+    - surface_charge: Surface bound charge σ_B (in C)
+    - volume_charge: Volume bound charge ρ_B (in C)
+
+  ## Returns
+    Total bound charge Q_B (in C)
+
+  ## Examples
+      iex> AstroEquations.Physics.Electromagnetism.total_bound_charge(1.0, -0.5)
+      0.5
+  """
+  def total_bound_charge(surface_charge, volume_charge) do
+    surface_charge + volume_charge
+  end
+
+  @doc """
+  Calculates electric displacement vector D.
+
+  ## Parameters
+    - permittivity: Absolute permittivity ε (in F/m)
+    - electric_field: Electric field vector E (in V/m)
+    - polarization: Polarization vector P (in C/m², optional)
+
+  ## Returns
+    Electric displacement vector D (in C/m²)
+
+  ## Examples
+      iex> AstroEquations.Physics.Electromagnetism.electric_displacement(2.0, [1, 0, 0])
+      [2.0, 0.0, 0.0]
+
+      iex> AstroEquations.Physics.Electromagnetism.electric_displacement(1.0, [1, 0, 0], [0.5, 0, 0])
+      [1.5, 0.0, 0.0]
+  """
+  def electric_displacement(permittivity, electric_field, polarization \\ [0, 0, 0]) do
+    # D = εE = ε₀E + P
+    d_from_permittivity = Enum.map(electric_field, fn e -> permittivity * e end)
+    Enum.zip(d_from_permittivity, polarization) |> Enum.map(fn {d, p} -> d + p end)
+  end
+
+  @doc """
+  Calculates magnetic field strength H.
+
+  ## Parameters
+    - magnetic_flux: Magnetic flux density B (in T)
+    - magnetization: Magnetization vector M (in A/m, optional)
+
+  ## Returns
+    Magnetic field strength H (in A/m)
+
+  ## Examples
+      iex> AstroEquations.Physics.Electromagnetism.magnetic_field_strength([1.0, 0, 0])
+      [795774.7154594767, 0.0, 0.0]
+
+      iex> AstroEquations.Physics.Electromagnetism.magnetic_field_strength([1.0, 0, 0], [1000, 0, 0])
+      [794774.7154594767, 0.0, 0.0]
+  """
+  def magnetic_field_strength(magnetic_flux, magnetization \\ [0, 0, 0]) do
+    # H = B/μ₀ - M
+    h_from_flux = Enum.map(magnetic_flux, fn b -> b / @vacuum_permeability end)
+    Enum.zip(h_from_flux, magnetization) |> Enum.map(fn {h, m} -> h - m end)
+  end
+
+  @doc """
+  Calculates magnetic dipole moment m.
+
+  ## Parameters
+    - current: Electric current I (in A)
+    - area_vector: Area vector a (in m²)
+
+  ## Returns
+    Magnetic dipole moment vector m (in A·m²)
+
+  ## Examples
+      iex> AstroEquations.Physics.Electromagnetism.magnetic_dipole_moment(1.0, [1, 0, 0])
+      [1.0, 0.0, 0.0]
+  """
+  def magnetic_dipole_moment(current, area_vector) do
+    Enum.map(area_vector, fn a -> current * a end)
+  end
+
+  @doc """
+  Calculates bound volume current density J_B (approximation).
+
+  Note: This is a simplified approximation of the curl.
+  For accurate calculations, use a proper numerical differentiation library.
+
+  ## Parameters
+    - magnetization_field: Magnetization field vectors [M1, M2, M3]
+    - delta_x: Spatial step size (in m)
+
+  ## Returns
+    Bound current density J_B (in A/m²)
+
+  ## Examples
+      iex> AstroEquations.Physics.Electromagnetism.bound_volume_current([[0, 0, 0], [0, 0, 1], [0, -1, 0]], 1e-3)
+      [2000.0, 0.0, 0.0]
+  """
+  def bound_volume_current(magnetization_field, delta_x) do
+    # Simplified approximation of ∇×M
+    [m1, m2, m3] = magnetization_field
+
+    [
+      (m3.y - m2.z) / delta_x,
+      (m1.z - m3.x) / delta_x,
+      (m2.x - m1.y) / delta_x
+    ]
+  end
+
+  @doc """
+  Calculates bound surface current density K_B.
+
+  ## Parameters
+    - magnetization: Magnetization vector M (in A/m)
+    - normal_vector: Unit normal vector ̂n (dimensionless)
+
+  ## Returns
+    Surface current density K_B (in A/m)
+
+  ## Examples
+      iex> AstroEquations.Physics.Electromagnetism.bound_surface_current([0, 0, 1], [1, 0, 0])
+      [0.0, 1.0, 0.0]
+  """
+  def bound_surface_current(magnetization, normal_vector) do
+    # K_B = M × n
+    [mx, my, mz] = magnetization
+    [nx, ny, nz] = normal_vector
+
+    [
+      my * nz - mz * ny,
+      mz * nx - mx * nz,
+      mx * ny - my * nx
+    ]
   end
 end
