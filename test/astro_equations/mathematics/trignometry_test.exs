@@ -1,0 +1,2 @@
+defmodule AstroEquations.Mathematics.TrignometryTest do
+end
