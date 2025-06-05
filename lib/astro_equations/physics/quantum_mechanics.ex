@@ -1,14 +1,31 @@
 defmodule AstroEquations.Physics.QuantumMechanics do
   @moduledoc """
-  A module implementing fundamental quantum mechanics principles and calculations.
-    - Partial traces
-  - Schrödinger equation solvers
-  - Heisenberg equation of motion
-  - Quantum operators and their properties
+
+
+
+  This module provides implementations of fundamental quantum mechanics concepts including:
+
+  ## Core Principles
+  - Uncertainty principle calculations
+  - Bra-ket notation operations
+  - Inner product rules
+  - Born rule probability calculations
+  - Expectation values and variances
   - Density matrix operations
+
+  ## Quantum Operators
+  - Pauli matrices (X, Y, Z)
+  - Identity operator
+  - Photon creation/annihilation operators
+  - Atomic energy level operators (raising/lowering)
+
+  ## Quantum Dynamics
+  - Schrödinger equation solver (1D)
+  - Heisenberg picture time evolution
+  - Partial trace operations for composite systems
+
   """
 
-  alias __MODULE__, as: QM
   import Complex
 
   # Reduced Planck constant
@@ -409,5 +426,193 @@ defmodule AstroEquations.Physics.QuantumMechanics do
     Enum.map(matrix, fn row ->
       Enum.map(row, fn el -> Complex.multiply(el, scalar) end)
     end)
+  end
+
+  import Complex
+
+  @doc """
+  Returns the Pauli X matrix:
+  σₓ = |0⟩⟨1| + |1⟩⟨0| ≐ [0 1; 1 0]
+
+  ## Examples
+      iex> QuantumOperators.pauli_x()
+      [[0, 1], [1, 0]]
+  """
+  @spec pauli_x() :: list(list(number()))
+  def pauli_x(), do: [[0, 1], [1, 0]]
+
+  @doc """
+  Returns the Pauli Y matrix:
+  σᵧ = i|1⟩⟨0| - i|0⟩⟨1| ≐ [0 -i; i 0]
+
+  ## Examples
+      iex> QuantumOperators.pauli_y()
+      [[{:complex, 0, -1}, {:complex, 0, 0}], [{:complex, 0, 1}, {:complex, 0, 0}]]
+  """
+  @spec pauli_y() :: list(list(Complex.t()))
+  def pauli_y() do
+    [
+      [new(0, -1), new(0, 0)],
+      [new(0, 1), new(0, 0)]
+    ]
+  end
+
+  @doc """
+  Returns the Pauli Z matrix:
+  σ_z = |0⟩⟨0| - |1⟩⟨1| ≐ [1 0; 0 -1]
+
+  ## Examples
+      iex> QuantumOperators.pauli_z()
+      [[1, 0], [0, -1]]
+  """
+  @spec pauli_z() :: list(list(number()))
+  def pauli_z(), do: [[1, 0], [0, -1]]
+
+  @doc """
+  Returns the 2x2 identity matrix:
+  I = |0⟩⟨0| + |1⟩⟨1| ≐ [1 0; 0 1]
+
+  ## Examples
+      iex> QuantumOperators.identity()
+      [[1, 0], [0, 1]]
+  """
+  @spec identity() :: list(list(number()))
+  def identity(), do: [[1, 0], [0, 1]]
+
+  @doc """
+  Computes the Hilbert-Schmidt norm of a matrix.
+
+  ## Parameters
+    - matrix: Matrix to compute norm of
+
+  ## Examples
+      iex> QuantumOperators.hilbert_schmidt_norm(QuantumOperators.pauli_x())
+      :math.sqrt(2)
+  """
+  @spec hilbert_schmidt_norm(list(list(number()))) :: float()
+  def hilbert_schmidt_norm(matrix) do
+    matrix
+    |> Enum.flat_map(& &1)
+    |> Enum.map(&(&1 * &1))
+    |> Enum.sum()
+    |> :math.sqrt()
+  end
+
+  @doc """
+  Applies the photon annihilation operator to a Fock state.
+
+  ## Parameters
+    - state: List representing the Fock state coefficients
+    - n: Index of the state to annihilate from
+
+  ## Examples
+      iex> QuantumOperators.annihilate([0, 1, 0], 1) # Annihilate from |1⟩
+      [1, 0, 0]
+      iex> QuantumOperators.annihilate([1, 0, 0], 0) # Annihilate from |0⟩
+      [0, 0, 0]
+  """
+  @spec annihilate(list(number()), integer()) :: list(float())
+  def annihilate(state, n) do
+    state
+    |> Enum.with_index()
+    |> Enum.map(fn {val, i} ->
+      if i == n - 1 do
+        val * :math.sqrt(n)
+      else
+        0.0
+      end
+    end)
+  end
+
+  @doc """
+  Applies the photon creation operator to a Fock state.
+
+  ## Parameters
+    - state: List representing the Fock state coefficients
+    - n: Index of the state to create in
+
+  ## Examples
+      iex> QuantumOperators.create([1, 0, 0], 0) # Create in |0⟩
+      [0, 1, 0]
+      iex> QuantumOperators.create([0, 1, 0], 1) # Create in |1⟩
+      [0, 0, :math.sqrt(2)]
+  """
+  @spec create(list(number()), integer()) :: list(float())
+  def create(state, n) do
+    state
+    |> Enum.with_index()
+    |> Enum.map(fn {val, i} ->
+      if i == n + 1 do
+        val * :math.sqrt(n + 1)
+      else
+        0.0
+      end
+    end)
+  end
+
+  @doc """
+  Atomic raising operator σ₊ = |e⟩⟨g|
+
+  ## Examples
+      iex> QuantumOperators.atomic_raise()
+      [[0, 1], [0, 0]]
+  """
+  @spec atomic_raise() :: list(list(number()))
+  def atomic_raise(), do: [[0, 1], [0, 0]]
+
+  @doc """
+  Atomic lowering operator σ₋ = |g⟩⟨e|
+
+  ## Examples
+      iex> QuantumOperators.atomic_lower()
+      [[0, 0], [1, 0]]
+  """
+  @spec atomic_lower() :: list(list(number()))
+  def atomic_lower(), do: [[0, 0], [1, 0]]
+
+  @doc """
+  Atomic energy difference operator σ_z = |e⟩⟨e| - |g⟩⟨g|
+
+  ## Examples
+      iex> QuantumOperators.atomic_sigma_z()
+      [[1, 0], [0, -1]]
+  """
+  @spec atomic_sigma_z() :: list(list(number()))
+  def atomic_sigma_z(), do: [[1, 0], [0, -1]]
+
+  @doc """
+  Applies atomic raising operator to a state.
+
+  ## Parameters
+    - state: [g_coeff, e_coeff] representing ground and excited state amplitudes
+
+  ## Examples
+      iex> QuantumOperators.apply_raise([1, 0]) # From ground state
+      [0, 1]
+      iex> QuantumOperators.apply_raise([0, 1]) # From excited state
+      [0, 0]
+  """
+  @spec apply_raise(list(number())) :: list(number())
+  def apply_raise([g, e]) do
+    # σ₊|g⟩ = |e⟩, σ₊|e⟩ = 0
+    [0, g]
+  end
+
+  @doc """
+  Applies atomic lowering operator to a state.
+
+  ## Parameters
+    - state: [g_coeff, e_coeff] representing ground and excited state amplitudes
+
+  ## Examples
+      iex> QuantumOperators.apply_lower([0, 1]) # From excited state
+      [1, 0]
+      iex> QuantumOperators.apply_lower([1, 0]) # From ground state
+      [0, 0]
+  """
+  @spec apply_lower(list(number())) :: list(number())
+  def apply_lower([g, e]) do
+    # σ₋|e⟩ = |g⟩, σ₋|g⟩ = 0
+    [e, 0]
   end
 end
