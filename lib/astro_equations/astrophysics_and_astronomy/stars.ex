@@ -26,16 +26,20 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
   # m/s (c in the radiation equation)
   @speed_of_light 2.99792458e8
 
-  @solar_mass 1.989e30                # kg (M⊙)
-  @solar_radius 6.957e8               # m (R⊙)
-  @solar_luminosity 3.828e26          # W (L⊙)
-  @proton_mass 1.6726219e-27          # kg (m_p)
-  @speed_of_light 2.99792458e8        # m/s (c)
-  @thomson_cross_section 6.6524587e-29 # m^2 (σ_T)
-  @efficiency 0.1                     # η (typical mass-energy conversion efficiency)
-
-
-
+  # kg (M⊙)
+  @solar_mass 1.989e30
+  # m (R⊙)
+  @solar_radius 6.957e8
+  # W (L⊙)
+  @solar_luminosity 3.828e26
+  # kg (m_p)
+  @proton_mass 1.6726219e-27
+  # m/s (c)
+  @speed_of_light 2.99792458e8
+  # m^2 (σ_T)
+  @thomson_cross_section 6.6524587e-29
+  # η (typical mass-energy conversion efficiency)
+  @efficiency 0.1
 
   @doc """
   Calculates the pressure gradient (dP/dr) for hydrostatic equilibrium.
@@ -124,11 +128,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
     -numerator / denominator
   end
 
-
-
-
-
-    @doc """
+  @doc """
   Calculates the Kelvin-Helmholtz (thermal) timescale for a star.
 
   ## Parameters
@@ -150,7 +150,8 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
     r = radius * @solar_radius
     l = luminosity * @solar_luminosity
 
-    (g * :math.pow(m, 2)) / (r * l) / (60 * 60 * 24 * 365.25) # Convert to years
+    # Convert to years
+    g * :math.pow(m, 2) / (r * l) / (60 * 60 * 24 * 365.25)
   end
 
   @doc """
@@ -211,9 +212,12 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
   """
   @spec eddington_luminosity(number) :: float
   def eddington_luminosity(mass) do
-    numerator = 4 * :math.pi * @gravitational_constant * mass * @solar_mass * @proton_mass * @speed_of_light
+    numerator =
+      4 * :math.pi() * @gravitational_constant * mass * @solar_mass * @proton_mass *
+        @speed_of_light
+
     denominator = @thomson_cross_section
-    (numerator / denominator) / @solar_luminosity
+    numerator / denominator / @solar_luminosity
   end
 
   @doc """
@@ -278,10 +282,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       mass < 0.43 -> 0.23 * :math.pow(mass, 2.3)
       mass < 2 -> 1.0 * :math.pow(mass, 4)
       mass < 20 -> 1.5 * :math.pow(mass, 3.5)
-      mass < 55 -> 1.5 * :math.pow(20, 3.5) * :math.pow(mass/20, 2.3) # Interpolation
+      # Interpolation
+      mass < 55 -> 1.5 * :math.pow(20, 3.5) * :math.pow(mass / 20, 2.3)
       true -> 32000.0 * mass
     end
   end
-
-
 end
