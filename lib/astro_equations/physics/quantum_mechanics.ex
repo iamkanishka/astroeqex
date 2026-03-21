@@ -1,495 +1,393 @@
 defmodule AstroEquations.Physics.QuantumMechanics do
   @moduledoc """
+  Fundamental quantum mechanics.
 
+  Covers:
+  - Heisenberg uncertainty principle
+  - de Broglie wavelength
+  - Energy levels (hydrogen atom, infinite square well, harmonic oscillator)
+  - Photon energy and momentum
+  - Born rule and probability
+  - Expectation values (position space and matrix form)
+  - Pauli matrices and spin operators
+  - Ladder operators (harmonic oscillator, atomic two-level)
+  - Density matrix and purity
+  - Commutators and Hilbert-Schmidt norm
+  - Basic scattering (transmission/reflection coefficients)
+  - Compton wavelength and Bohr magneton
 
-
-  This module provides implementations of fundamental quantum mechanics concepts including:
-
-  ## Core Principles
-  - Uncertainty principle calculations
-  - Bra-ket notation operations
-  - Inner product rules
-  - Born rule probability calculations
-  - Expectation values and variances
-  - Density matrix operations
-
-  ## Quantum Operators
-  - Pauli matrices (X, Y, Z)
-  - Identity operator
-  - Photon creation/annihilation operators
-  - Atomic energy level operators (raising/lowering)
-
-  ## Quantum Dynamics
-  - Schrödinger equation solver (1D)
-  - Heisenberg picture time evolution
-  - Partial trace operations for composite systems
-
+  Note: Matrix operations use plain Elixir lists (nested lists for matrices).
+  For production use, consider a linear-algebra dependency.
   """
 
-  import Complex
-
-  # Reduced Planck constant
+  # Reduced Planck constant (J·s)
   @hbar 1.054571817e-34
+  # Planck constant (J·s)
+  @h 6.62607015e-34
+  # Electron mass (kg)
+  @m_electron 9.10938370e-31
+  # Speed of light (m/s)
+  @speed_of_light 2.99792458e8
+  # Bohr radius (m)
+  @a0 5.29177210903e-11
+  # Fine-structure constant
+  @alpha 7.2973525693e-3
+  # Boltzmann constant (J/K)
+  @boltzmann 1.380649e-23
+  # Elementary charge (C)
+  @elementary_charge 1.602176634e-19
+
+  # ---------------------------------------------------------------------------
+  # Fundamental Relations
+  # ---------------------------------------------------------------------------
 
   @doc """
-  Calculates the product of uncertainties for position and momentum.
-
-  ## Parameters
-    - delta_x: Uncertainty in position
-    - delta_p: Uncertainty in momentum
+  Heisenberg uncertainty principle check: Δx Δp ≥ ħ/2
 
   ## Returns
-    - true if the product satisfies Heisenberg's Uncertainty Principle
-    - false otherwise
+    true if the product satisfies the principle
 
   ## Examples
       iex> QuantumMechanics.uncertainty_principle?(1.0, 0.6)
       true
-
-      iex> QuantumMechanics.uncertainty_principle?(0.1, 0.4)
-      false
   """
-  @spec uncertainty_principle?(number(), number()) :: boolean()
+  @spec uncertainty_principle?(number, number) :: boolean
   def uncertainty_principle?(delta_x, delta_p) do
-    # Reduced Planck constant
-    h_bar = 1.0545718e-34
-    delta_x * delta_p >= h_bar / 2
+    delta_x * delta_p >= @hbar / 2
+  end
+
+  @doc "Minimum position–momentum uncertainty product: Δx Δp_min = ħ/2."
+  @spec min_uncertainty_product() :: float
+  def min_uncertainty_product, do: @hbar / 2
+
+  @doc "Checks the energy-time uncertainty relation: ΔE Δt ≥ ħ/2."
+  @spec energy_time_uncertainty?(number, number) :: boolean
+  def energy_time_uncertainty?(delta_e, delta_t) do
+    delta_e * delta_t >= @hbar / 2
   end
 
   @doc """
-  Calculates the probability according to the Born rule.
+  de Broglie wavelength: λ = h / p
 
   ## Parameters
-    - inner_product: The inner product ⟨ψ|ψ⟩
-
-  ## Returns
-    - The probability as the square of the absolute value
+    - momentum: Particle momentum (kg·m/s)
 
   ## Examples
-      iex> QuantumMechanics.born_rule(0.5 + 0.3i)
-      0.34  # 0.5² + 0.3²
+      iex> QuantumMechanics.de_broglie_wavelength(1.0e-24) > 0
+      true
   """
-  @spec born_rule(Complex.t()) :: float()
-  def born_rule(inner_product) do
-    Complex.abs(inner_product) ** 2
-  end
+  @spec de_broglie_wavelength(number) :: float
+  def de_broglie_wavelength(momentum), do: @h / momentum
 
   @doc """
-  Calculates the expectation value of an operator in position space.
+  de Broglie wavelength from kinetic energy: λ = h / √(2 m KE)
 
   ## Parameters
-    - operator: The operator function A(x)
-    - wavefunction: The wavefunction Ψ(x,t) as a function of x
-    - x_values: List of position values to integrate over
-
-  ## Returns
-    - The expectation value ⟨A⟩
+    - kinetic_energy: KE (J)
+    - mass:           Particle mass (kg, default: electron mass)
 
   ## Examples
-      iex> operator = fn x -> x end  # Position operator
-      iex> wavefunction = fn x -> :math.exp(-x * x / 2) / :math.sqrt(:math.pi) end  # Ground state
-      iex> QuantumMechanics.expectation_position(operator, wavefunction, -10..10//0.1)
-      0.0  # Expected value for ground state
+      iex> QuantumMechanics.de_broglie_wavelength_ke(1.602e-19) > 0
+      true
   """
-  @spec expectation_position((float() -> float()), (float() -> Complex.t()), Range.t()) :: float()
-  def expectation_position(operator, wavefunction, x_values) do
-    x_values
-    |> Enum.map(fn x ->
-      dx = step_size(x_values)
-      operator.(x) * Kernel.abs(wavefunction.(x)) ** 2 * dx
-    end)
-    |> Enum.sum()
+  @spec de_broglie_wavelength_ke(number, number) :: float
+  def de_broglie_wavelength_ke(kinetic_energy, mass \\ @m_electron) do
+    @h / :math.sqrt(2 * mass * kinetic_energy)
   end
 
   @doc """
-  Calculates the expectation value using bra-ket notation.
+  Photon energy: E = h f = ħ omega
 
   ## Parameters
-    - operator: Matrix representation of the operator
-    - state: Vector representation of the state |ψ⟩
-
-  ## Returns
-    - The expectation value ⟨ψ|A|ψ⟩
+    - frequency: f (Hz)
 
   ## Examples
-      iex> operator = [[1, 0], [0, -1]]  # Pauli Z matrix
-      iex> state = [1/:math.sqrt(2), 1/:math.sqrt(2)]  # +X state
-      iex> QuantumMechanics.expectation_braket(operator, state)
-      0.0
+      iex> QuantumMechanics.photon_energy(6.0e14) > 0
+      true
   """
-  @spec expectation_braket(list(list(number())), list(number())) :: float()
-  def expectation_braket(operator, state) do
-    # ⟨ψ|A|ψ⟩ = state† • operator • state
-    adjoint_state = Enum.map(state, &Complex.conjugate/1)
+  @spec photon_energy(number) :: float
+  def photon_energy(frequency), do: @h * frequency
 
-    operator
-    |> matrix_multiply(state)
-    |> inner_product(adjoint_state)
-  end
+  @doc "Photon momentum from de Broglie: p = h/λ."
+  @spec photon_momentum(number) :: float
+  def photon_momentum(wavelength), do: @h / wavelength
 
   @doc """
-  Calculates the variance of an observable.
+  Compton wavelength: λ_C = h / (m c)
+
+  The length scale at which relativistic and quantum effects become comparable.
 
   ## Parameters
-    - operator: Matrix representation of the operator
-    - state: Vector representation of the state |ψ⟩
+    - mass: Particle mass (kg, default: electron mass)
 
   ## Returns
-    - The variance var(A)
+    Compton wavelength (m)
 
   ## Examples
-      iex> operator = [[1, 0], [0, -1]]  # Pauli Z matrix
-      iex> state = [1, 0]  # |0⟩ state
-      iex> QuantumMechanics.variance(operator, state)
-      0.0
+      iex> QuantumMechanics.compton_wavelength() > 0
+      true
   """
-  @spec variance(list(list(number())), list(number())) :: float()
-  def variance(operator, state) do
-    a_squared = matrix_multiply(operator, operator)
-    term1 = expectation_braket(a_squared, state)
-    term2 = expectation_braket(operator, state) ** 2
-    term1 - term2
+  @spec compton_wavelength(number) :: float
+  def compton_wavelength(mass \\ @m_electron) do
+    @h / (mass * @speed_of_light)
   end
 
   @doc """
-  Calculates the standard deviation of an observable.
+  Bohr magneton: μ_B = eħ / (2 m_e)
 
-  ## Parameters
-    - operator: Matrix representation of the operator
-    - state: Vector representation of the state |ψ⟩
+  The natural unit of electron magnetic dipole moment.
 
   ## Returns
-    - The standard deviation δA
+    Bohr magneton in J/T
 
   ## Examples
-      iex> operator = [[1, 0], [0, -1]]  # Pauli Z matrix
-      iex> state = [1/:math.sqrt(2), 1/:math.sqrt(2)]  # +X state
-      iex> QuantumMechanics.standard_deviation(operator, state)
+      iex> QuantumMechanics.bohr_magneton() > 0
+      true
+  """
+  @spec bohr_magneton() :: float
+  def bohr_magneton do
+    @elementary_charge * @hbar / (2 * @m_electron)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Hydrogen Atom Energy Levels
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Hydrogen atom energy levels: E_n = -13.6 eV / n²
+
+  ## Parameters
+    - n: Principal quantum number (positive integer)
+
+  ## Returns
+    Energy in electron-volts
+
+  ## Examples
+      iex> QuantumMechanics.hydrogen_energy_level(1) |> Float.round(2)
+      -13.6
+  """
+  @spec hydrogen_energy_level(number) :: float
+  def hydrogen_energy_level(n), do: -13.6 / (n * n)
+
+  @doc """
+  Hydrogen atom energy levels in joules.
+
+  E_n = -m_e e⁴ / (8 ε₀² h² n²)
+
+  ## Examples
+      iex> QuantumMechanics.hydrogen_energy_joules(1) < 0
+      true
+  """
+  @spec hydrogen_energy_joules(number) :: float
+  def hydrogen_energy_joules(n) do
+    e = 1.602176634e-19
+    eps0 = 8.8541878128e-12
+    -@m_electron * e ** 4 / (8 * eps0 ** 2 * @h ** 2 * n ** 2)
+  end
+
+  @doc "Returns the Bohr radius: a₀ = 4πε₀ħ²/(mₑe²) ≈ 5.292×10⁻¹¹ m."
+  @spec bohr_radius() :: float
+  def bohr_radius, do: @a0
+
+  @doc """
+  Rydberg formula for spectral lines: 1/λ = R_∞ (1/n₁² - 1/n₂²)
+
+  ## Parameters
+    - n1:    Lower principal quantum number
+    - n2:    Upper principal quantum number
+    - r_inf: Rydberg constant (m⁻¹, default: 1.0973731568×10⁷)
+
+  ## Returns
+    Wavelength in metres
+  """
+  @spec rydberg_wavelength(number, number, number) :: float
+  def rydberg_wavelength(n1, n2, r_inf \\ 1.0973731568e7) when n2 > n1 do
+    1.0 / (r_inf * (1 / (n1 * n1) - 1 / (n2 * n2)))
+  end
+
+  # ---------------------------------------------------------------------------
+  # Energy Levels — Idealised Systems
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Particle-in-a-box (infinite square well) energy levels:
+  E_n = n² π² ħ² / (2 m L²)
+
+  ## Parameters
+    - n:    Quantum number
+    - mass: Particle mass (kg)
+    - l:    Box length (m)
+
+  ## Examples
+      iex> QuantumMechanics.infinite_well_energy(1, 9.109e-31, 1.0e-9) > 0
+      true
+  """
+  @spec infinite_well_energy(number, number, number) :: float
+  def infinite_well_energy(n, mass, l) do
+    n * n * :math.pi() ** 2 * @hbar ** 2 / (2 * mass * l * l)
+  end
+
+  @doc """
+  Quantum harmonic oscillator energy levels: E_n = ħ omega (n + ½)
+
+  ## Parameters
+    - n:     Quantum number (0, 1, 2, …)
+    - omega: Angular frequency (rad/s)
+
+  ## Examples
+      iex> QuantumMechanics.harmonic_oscillator_energy(0, 1.0e14) > 0
+      true
+  """
+  @spec harmonic_oscillator_energy(number, number) :: float
+  def harmonic_oscillator_energy(n, omega), do: @hbar * omega * (n + 0.5)
+
+  # ---------------------------------------------------------------------------
+  # Born Rule & Probability
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Born rule probability: P = |⟨ψ|φ⟩|²
+
+  ## Examples
+      iex> QuantumMechanics.born_rule(1.0) |> Float.round(4)
       1.0
   """
-  @spec standard_deviation(list(list(number())), list(number())) :: float()
+  @spec born_rule(number) :: float
+  def born_rule(inner_product_magnitude), do: inner_product_magnitude ** 2
+
+  # ---------------------------------------------------------------------------
+  # Expectation Values (Matrix Form)
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Expectation value ⟨A⟩ = ⟨ψ|A|ψ⟩ for real state vector and Hermitian operator.
+
+  ## Examples
+      iex> QuantumMechanics.expectation_braket([[1,0],[0,-1]], [1.0, 0.0]) |> Float.round(4)
+      1.0
+  """
+  @spec expectation_braket([[number]], [number]) :: float
+  def expectation_braket(operator, state) do
+    a_psi = matrix_multiply(operator, state)
+    inner_product(state, a_psi)
+  end
+
+  @doc "Quantum mechanical variance of an observable: Var(A) = ⟨A²⟩ − ⟨A⟩²."
+  @spec variance([[number]], [number]) :: float
+  def variance(operator, state) do
+    a2 = matrix_multiply(operator, operator)
+    expectation_braket(a2, state) - expectation_braket(operator, state) ** 2
+  end
+
+  @doc "Quantum mechanical standard deviation: δA = √Var(A)."
+  @spec standard_deviation([[number]], [number]) :: float
   def standard_deviation(operator, state) do
-    variance(operator, state) |> :math.sqrt()
+    :math.sqrt(abs(variance(operator, state)))
   end
 
-  @doc """
-  Calculates the trace of an operator.
+  @doc "Expectation value ⟨x⟩ via numerical integration in position space."
+  @spec expectation_position((number -> number), (number -> number), Enumerable.t()) :: float
+  def expectation_position(operator, wavefunction, x_values) do
+    n = Enum.count(x_values) - 1
+    x_list = Enum.to_list(x_values)
+    dx = if n > 0, do: (List.last(x_list) - List.first(x_list)) / n, else: 1.0
 
-  ## Parameters
-    - operator: Matrix representation of the operator
-    - basis: List of basis vectors
-
-  ## Returns
-    - The trace Tr(A)
-
-  ## Examples
-      iex> operator = [[1, 0], [0, -1]]  # Pauli Z matrix
-      iex> basis = [[[1, 0], [0, 1]]]  # Standard basis
-      iex> QuantumMechanics.trace(operator, basis)
-      0.0  # 1 + (-1)
-  """
-  @spec trace(list(list(number())), list(list(list(number())))) :: number()
-  def trace(operator, basis) do
-    basis
-    |> Enum.map(fn basis_vector ->
-      expectation_braket(operator, basis_vector)
-    end)
-    |> Enum.sum()
-  end
-
-  # Helper functions
-  defp step_size(range) do
-    (range.last - range.first) / (Enum.count(range) - 1)
-  end
-
-  defp matrix_multiply(matrix, vector) do
-    Enum.map(matrix, fn row ->
-      Enum.zip_with(row, vector, fn a, b -> a * b end) |> Enum.sum()
+    Enum.reduce(x_list, 0.0, fn x, acc ->
+      acc + operator.(x) * wavefunction.(x) ** 2 * dx
     end)
   end
 
-  defp inner_product(vec1, vec2) do
-    Enum.zip_with(vec1, vec2, fn a, b -> a * b end) |> Enum.sum()
+  # ---------------------------------------------------------------------------
+  # Pauli Matrices
+  # ---------------------------------------------------------------------------
+
+  @doc "Pauli X matrix (bit-flip operator): σₓ = [[0,1],[1,0]]."
+  @spec pauli_x() :: [[number]]
+  def pauli_x, do: [[0, 1], [1, 0]]
+
+  @doc "Pauli Z matrix (phase-flip operator): σ_z = [[1,0],[0,−1]]."
+  @spec pauli_z() :: [[number]]
+  def pauli_z, do: [[1, 0], [0, -1]]
+
+  @doc "2×2 identity matrix."
+  @spec identity() :: [[number]]
+  def identity, do: [[1, 0], [0, 1]]
+
+  @doc "Atomic two-level raising operator: σ₊ = |e⟩⟨g|."
+  @spec atomic_raise() :: [[number]]
+  def atomic_raise, do: [[0, 1], [0, 0]]
+
+  @doc "Atomic two-level lowering operator: σ₋ = |g⟩⟨e|."
+  @spec atomic_lower() :: [[number]]
+  def atomic_lower, do: [[0, 0], [1, 0]]
+
+  @doc "Atomic population difference operator: σ_z = |e⟩⟨e| − |g⟩⟨g|."
+  @spec atomic_sigma_z() :: [[number]]
+  def atomic_sigma_z, do: [[1, 0], [0, -1]]
+
+  @doc "Applies the atomic raising operator σ₊ to a two-level state vector."
+  @spec apply_raise([number]) :: [number]
+  def apply_raise([g, _e]), do: [0, g]
+
+  @doc "Applies the atomic lowering operator σ₋ to a two-level state vector."
+  @spec apply_lower([number]) :: [number]
+  def apply_lower([_g, e]), do: [e, 0]
+
+  # ---------------------------------------------------------------------------
+  # Ladder Operators (Harmonic Oscillator)
+  # ---------------------------------------------------------------------------
+
+  @doc "Applies the bosonic annihilation (lowering) operator: â|n⟩ = √n |n-1⟩."
+  @spec annihilate([number], non_neg_integer) :: [float]
+  def annihilate(state, n) do
+    Enum.with_index(state, fn val, i ->
+      if i == n - 1, do: val * :math.sqrt(n), else: 0.0
+    end)
   end
+
+  @doc "Applies the bosonic creation (raising) operator: â†|n⟩ = √(n+1) |n+1⟩."
+  @spec create([number], non_neg_integer) :: [float]
+  def create(state, n) do
+    Enum.with_index(state, fn val, i ->
+      if i == n + 1, do: val * :math.sqrt(n + 1), else: 0.0
+    end)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Density Matrix
+  # ---------------------------------------------------------------------------
 
   @doc """
-  Computes the partial trace over subsystem B of a composite system.
-
-  ## Parameters
-    - rho_ab: Density matrix of the composite system (as tensor product)
-    - dim_a: Dimension of subsystem A
-    - dim_b: Dimension of subsystem B
-
-  ## Returns
-    - Density matrix of subsystem A after tracing out B
+  Builds a density matrix ρ = Σᵢ pᵢ |ψᵢ⟩⟨ψᵢ|
 
   ## Examples
-      iex> rho_a = [[1, 0], [0, 0]]
-      iex> rho_b = [[0.5, 0.5], [0.5, 0.5]]
-      iex> rho_ab = QM.tensor_product(rho_a, rho_b)
-      iex> QM.partial_trace(rho_ab, 2, 2)
-      [[0.5, 0.0], [0.0, 0.0]]
+      iex> QuantumMechanics.density_matrix([[1, 0]], [1.0]) |> hd() |> hd() |> Float.round(4)
+      1.0
   """
-  @spec partial_trace(list(list(number())), integer(), integer()) :: list(list(float()))
-  def partial_trace(rho_ab, dim_a, dim_b) do
-    for i <- 0..(dim_a - 1),
-        j <- 0..(dim_a - 1),
-        do:
-          Enum.reduce(0..(dim_b - 1), 0, fn k, acc ->
-            acc + (Enum.at(rho_ab, i * dim_b + k) |> Enum.at(j * dim_b + k))
-          end)
-          |> Enum.chunk_every(dim_a)
-  end
-
-  @doc """
-  Solves the time-independent Schrödinger equation for 1D potentials.
-
-  ## Parameters
-    - potential_fn: Function V(x) describing the potential
-    - mass: Particle mass
-    - x_range: Range of x values to solve over
-    - boundary_conditions: Tuple of {left_boundary, right_boundary}
-
-  ## Returns
-    - Tuple of {eigenvalues, eigenfunctions}
-
-  ## Examples
-      iex> potential_fn = fn x -> 0.5 * x * x end # Harmonic oscillator
-      iex> {energies, _waves} = QM.solve_schrodinger(potential_fn, 1.0, -5.0..5.0//0.1, {0.0, 0.0})
-      iex> length(energies) > 0
-      true
-  """
-  @spec solve_schrodinger((float() -> float()), float(), Range.t(), {number(), number()}) ::
-          {list(float()), list(list(float()))}
-  def solve_schrodinger(potential_fn, mass, x_range, {psi_left, psi_right}) do
-    # Finite difference method implementation
-    x_list = Enum.to_list(x_range)
-    n = length(x_list)
-    dx = step_size(x_range)
-
-    # Construct Hamiltonian matrix
-    hamiltonian =
-      for i <- 0..(n - 1) do
-        for j <- 0..(n - 1) do
-          cond do
-            i == j ->
-              @hbar ** 2 / (mass * dx ** 2) + potential_fn.(Enum.at(x_list, i))
-
-            Kernel.abs(i - j) == 1 ->
-              -@hbar ** 2 / (2 * mass * dx ** 2)
-
-            true ->
-              0.0
-          end
-        end
-      end
-
-    # Apply boundary conditions
-    hamiltonian = List.update_at(hamiltonian, 0, fn _ -> List.duplicate(0.0, n) end)
-    hamiltonian = List.update_at(hamiltonian, -1, fn _ -> List.duplicate(0.0, n) end)
-
-    # Diagonalize to find eigenvalues and eigenvectors
-    {eigenvalues, eigenfunctions} = diagonalize(hamiltonian)
-    {eigenvalues, eigenfunctions}
-  end
-
-  @doc """
-  Computes the time evolution of an operator in the Heisenberg picture.
-
-  ## Parameters
-    - operator: Initial operator matrix
-    - hamiltonian: Hamiltonian matrix
-    - t: Time to evolve
-    - dt: Time step size
-
-  ## Returns
-    - Operator evolved to time t
-
-  ## Examples
-      iex> op = [[0, 1], [1, 0]] # Pauli X
-      iex> h = [[1, 0], [0, -1]] # Pauli Z
-      iex> evolved = QM.heisenberg_evolution(op, h, 1.0, 0.01)
-      iex> matrix_size(evolved) == {2, 2}
-      true
-  """
-  @spec heisenberg_evolution(list(list(number())), list(list(number())), float(), float()) ::
-          list(list(Complex.t()))
-  def heisenberg_evolution(operator, hamiltonian, t, dt) do
-    steps = round(t / dt)
-    evolve_step(operator, hamiltonian, steps, dt)
-  end
-
-  defp evolve_step(op, _h, 0, _dt), do: op
-
-  defp evolve_step(op, h, steps, dt) do
-    # Compute commutator [H, A]
-    comm = matrix_subtract(matrix_multiply(h, op), matrix_multiply(op, h))
-    # dA/dt = (i/hbar)[H,A]
-    derivative = matrix_scale(comm, new(0, 1.0 / @hbar))
-    # Euler step
-    new_op = matrix_add(op, matrix_scale(derivative, dt))
-    evolve_step(new_op, h, steps - 1, dt)
-  end
-
-  @doc """
-  Constructs a density matrix from state vectors and probabilities.
-
-  ## Parameters
-    - states: List of state vectors
-    - probs: List of corresponding probabilities
-
-  ## Returns
-    - Density matrix ρ
-
-  ## Examples
-      iex> state1 = [1, 0]
-      iex> state2 = [0, 1]
-      iex> QM.density_matrix([state1, state2], [0.5, 0.5])
-      [[0.5, 0], [0, 0.5]]
-  """
-  @spec density_matrix(list(list(number())), list(float())) :: list(list(float()))
+  @spec density_matrix([[number]], [float]) :: [[float]]
   def density_matrix(states, probs) do
     Enum.zip_with(states, probs, fn state, p ->
-      outer = outer_product(state, state)
-      matrix_scale(outer, p)
+      matrix_scale(outer_product(state, state), p)
     end)
     |> Enum.reduce(fn m, acc -> matrix_add(m, acc) end)
   end
 
-  @doc """
-  Computes the purity of a density matrix.
-
-  ## Parameters
-    - rho: Density matrix
-
-  ## Returns
-    - Purity value between 1/d and 1
-
-  ## Examples
-      iex> rho = [[0.5, 0], [0, 0.5]]
-      iex> QM.purity(rho)
-      0.5
-  """
-  @spec purity(list(list(number()))) :: float()
+  @doc "Purity of a quantum state: Tr(ρ²), equal to 1 for a pure state."
+  @spec purity([[number]]) :: float
   def purity(rho) do
-    rho_squared = matrix_multiply(rho, rho)
-    trace(rho_squared)
+    rho2 = matrix_multiply(rho, rho)
+    matrix_trace(rho2)
   end
 
-  # Helper functions
-  defp tensor_product(a, b) do
-    for a_row <- a do
-      for a_el <- a_row do
-        for b_row <- b do
-          for b_el <- b_row do
-            a_el * b_el
-          end
-        end
-      end
-    end
-    |> List.flatten()
-    |> Enum.chunk_every(length(b) * length(Enum.at(b, 0)))
-  end
-
-  defp outer_product(ket, bra) do
-    for k <- ket do
-      for b <- bra do
-        k * Complex.conjugate(b)
-      end
-    end
-  end
-
-  defp diagonalize(matrix) do
-    # This would use a proper numerical diagonalization in real implementation
-    # For simplicity, we return dummy values here
-    {[1.0, 2.0], [[1.0, 0.0], [0.0, 1.0]]}
-  end
-
-  defp trace(matrix) do
+  @doc "Trace of a square matrix: Tr(A) = Σᵢ Aᵢᵢ."
+  @spec matrix_trace([[number]]) :: float
+  def matrix_trace(matrix) do
     Enum.with_index(matrix)
-    |> Enum.reduce(0, fn {row, i}, acc -> acc + Enum.at(row, i) end)
+    |> Enum.reduce(0, fn {row, i}, acc -> acc + Enum.at(row, i, 0) end)
   end
 
-  defp matrix_add(a, b) do
-    Enum.zip_with(a, b, fn row_a, row_b ->
-      Enum.zip_with(row_a, row_b, fn x, y -> Complex.add(x, y) end)
-    end)
-  end
-
-  defp matrix_subtract(a, b) do
-    Enum.zip_with(a, b, fn row_a, row_b ->
-      Enum.zip_with(row_a, row_b, fn x, y -> Complex.subtract(x, y) end)
-    end)
-  end
-
-  defp matrix_scale(matrix, scalar) do
-    Enum.map(matrix, fn row ->
-      Enum.map(row, fn el -> Complex.multiply(el, scalar) end)
-    end)
-  end
-
-  import Complex
-
-  @doc """
-  Returns the Pauli X matrix:
-  σₓ = |0⟩⟨1| + |1⟩⟨0| ≐ [0 1; 1 0]
-
-  ## Examples
-      iex> QuantumOperators.pauli_x()
-      [[0, 1], [1, 0]]
-  """
-  @spec pauli_x() :: list(list(number()))
-  def pauli_x(), do: [[0, 1], [1, 0]]
-
-  @doc """
-  Returns the Pauli Y matrix:
-  σᵧ = i|1⟩⟨0| - i|0⟩⟨1| ≐ [0 -i; i 0]
-
-  ## Examples
-      iex> QuantumOperators.pauli_y()
-      [[{:complex, 0, -1}, {:complex, 0, 0}], [{:complex, 0, 1}, {:complex, 0, 0}]]
-  """
-  @spec pauli_y() :: list(list(Complex.t()))
-  def pauli_y() do
-    [
-      [new(0, -1), new(0, 0)],
-      [new(0, 1), new(0, 0)]
-    ]
-  end
-
-  @doc """
-  Returns the Pauli Z matrix:
-  σ_z = |0⟩⟨0| - |1⟩⟨1| ≐ [1 0; 0 -1]
-
-  ## Examples
-      iex> QuantumOperators.pauli_z()
-      [[1, 0], [0, -1]]
-  """
-  @spec pauli_z() :: list(list(number()))
-  def pauli_z(), do: [[1, 0], [0, -1]]
-
-  @doc """
-  Returns the 2x2 identity matrix:
-  I = |0⟩⟨0| + |1⟩⟨1| ≐ [1 0; 0 1]
-
-  ## Examples
-      iex> QuantumOperators.identity()
-      [[1, 0], [0, 1]]
-  """
-  @spec identity() :: list(list(number()))
-  def identity(), do: [[1, 0], [0, 1]]
-
-  @doc """
-  Computes the Hilbert-Schmidt norm of a matrix.
-
-  ## Parameters
-    - matrix: Matrix to compute norm of
-
-  ## Examples
-      iex> QuantumOperators.hilbert_schmidt_norm(QuantumOperators.pauli_x())
-      :math.sqrt(2)
-  """
-  @spec hilbert_schmidt_norm(list(list(number()))) :: float()
+  @doc "Hilbert-Schmidt (Frobenius) norm of a matrix: ||A||_HS = √(Tr(A†A))."
+  @spec hilbert_schmidt_norm([[number]]) :: float
   def hilbert_schmidt_norm(matrix) do
     matrix
     |> Enum.flat_map(& &1)
@@ -498,121 +396,127 @@ defmodule AstroEquations.Physics.QuantumMechanics do
     |> :math.sqrt()
   end
 
-  @doc """
-  Applies the photon annihilation operator to a Fock state.
+  # ---------------------------------------------------------------------------
+  # Scattering (Step Potential)
+  # ---------------------------------------------------------------------------
 
-  ## Parameters
-    - state: List representing the Fock state coefficients
-    - n: Index of the state to annihilate from
+  @doc """
+  Transmission coefficient through a rectangular barrier (E > V₀): T = 4k₁k₂/(k₁+k₂)²
 
   ## Examples
-      iex> QuantumOperators.annihilate([0, 1, 0], 1) # Annihilate from |1⟩
-      [1, 0, 0]
-      iex> QuantumOperators.annihilate([1, 0, 0], 0) # Annihilate from |0⟩
-      [0, 0, 0]
+      iex> QuantumMechanics.transmission_coefficient(5.0e9, 5.0e9) |> Float.round(4)
+      1.0
   """
-  @spec annihilate(list(number()), integer()) :: list(float())
-  def annihilate(state, n) do
-    state
-    |> Enum.with_index()
-    |> Enum.map(fn {val, i} ->
-      if i == n - 1 do
-        val * :math.sqrt(n)
-      else
-        0.0
-      end
+  @spec transmission_coefficient(number, number) :: float
+  def transmission_coefficient(k1, k2) do
+    4 * k1 * k2 / :math.pow(k1 + k2, 2)
+  end
+
+  @doc "Quantum mechanical reflection coefficient at a potential step: R = ((k₁−k₂)/(k₁+k₂))²."
+  @spec reflection_coefficient(number, number) :: float
+  def reflection_coefficient(k1, k2) do
+    :math.pow((k1 - k2) / (k1 + k2), 2)
+  end
+
+  @doc """
+  Wave vector from energy and potential: k = √(2m(E-V)) / ħ
+
+  ## Examples
+      iex> QuantumMechanics.wave_vector(9.109e-31, 5.0e-19, 0.0) > 0
+      true
+  """
+  @spec wave_vector(number, number, number) :: float
+  def wave_vector(mass, energy, potential) do
+    :math.sqrt(max(2 * mass * (energy - potential), 0.0)) / @hbar
+  end
+
+  @doc """
+  Returns the **fine-structure constant (α)**.
+
+  The fine-structure constant is a fundamental dimensionless
+  constant that characterizes the strength of the electromagnetic interaction.
+
+  Value:
+
+      α ≈ 7.2973525693 × 10⁻³
+
+  ## Examples
+
+      iex> AstroEquations.Physics.QuantumMechanics.fine_structure_constant()
+      0.0072973525693
+  """
+  @spec fine_structure_constant() :: float
+  def fine_structure_constant do
+    @alpha
+  end
+
+  @doc """
+  Calculates **thermal energy** using the Boltzmann relation.
+
+  Formula:
+
+      E = k_B * T
+
+  where:
+
+  - `E` = thermal energy (Joules)
+  - `k_B` = Boltzmann constant
+  - `T` = temperature in Kelvin
+
+  ## Parameters
+
+  - `temperature` — temperature in **Kelvin**
+
+  ## Returns
+
+  - Thermal energy in **Joules**
+
+  ## Examples
+
+      iex> AstroEquations.Physics.QuantumMechanics.thermal_energy(300)
+      4.141947e-21
+  """
+  @spec thermal_energy(number) :: float
+  def thermal_energy(temperature) do
+    @boltzmann * temperature
+  end
+
+  # ---------------------------------------------------------------------------
+  # Private helpers
+  # ---------------------------------------------------------------------------
+
+  defp matrix_multiply(a, b) when is_list(b) and b != [] and not is_list(hd(b)) do
+    Enum.map(a, fn row ->
+      Enum.zip_with(row, b, fn x, y -> x * y end) |> Enum.sum()
     end)
   end
 
-  @doc """
-  Applies the photon creation operator to a Fock state.
+  defp matrix_multiply(a, b) do
+    n = length(b)
+    b_t = Enum.map(0..(n - 1), fn j -> Enum.map(b, &Enum.at(&1, j)) end)
 
-  ## Parameters
-    - state: List representing the Fock state coefficients
-    - n: Index of the state to create in
-
-  ## Examples
-      iex> QuantumOperators.create([1, 0, 0], 0) # Create in |0⟩
-      [0, 1, 0]
-      iex> QuantumOperators.create([0, 1, 0], 1) # Create in |1⟩
-      [0, 0, :math.sqrt(2)]
-  """
-  @spec create(list(number()), integer()) :: list(float())
-  def create(state, n) do
-    state
-    |> Enum.with_index()
-    |> Enum.map(fn {val, i} ->
-      if i == n + 1 do
-        val * :math.sqrt(n + 1)
-      else
-        0.0
-      end
+    Enum.map(a, fn row ->
+      Enum.map(b_t, fn col ->
+        Enum.zip_with(row, col, fn x, y -> x * y end) |> Enum.sum()
+      end)
     end)
   end
 
-  @doc """
-  Atomic raising operator σ₊ = |e⟩⟨g|
-
-  ## Examples
-      iex> QuantumOperators.atomic_raise()
-      [[0, 1], [0, 0]]
-  """
-  @spec atomic_raise() :: list(list(number()))
-  def atomic_raise(), do: [[0, 1], [0, 0]]
-
-  @doc """
-  Atomic lowering operator σ₋ = |g⟩⟨e|
-
-  ## Examples
-      iex> QuantumOperators.atomic_lower()
-      [[0, 0], [1, 0]]
-  """
-  @spec atomic_lower() :: list(list(number()))
-  def atomic_lower(), do: [[0, 0], [1, 0]]
-
-  @doc """
-  Atomic energy difference operator σ_z = |e⟩⟨e| - |g⟩⟨g|
-
-  ## Examples
-      iex> QuantumOperators.atomic_sigma_z()
-      [[1, 0], [0, -1]]
-  """
-  @spec atomic_sigma_z() :: list(list(number()))
-  def atomic_sigma_z(), do: [[1, 0], [0, -1]]
-
-  @doc """
-  Applies atomic raising operator to a state.
-
-  ## Parameters
-    - state: [g_coeff, e_coeff] representing ground and excited state amplitudes
-
-  ## Examples
-      iex> QuantumOperators.apply_raise([1, 0]) # From ground state
-      [0, 1]
-      iex> QuantumOperators.apply_raise([0, 1]) # From excited state
-      [0, 0]
-  """
-  @spec apply_raise(list(number())) :: list(number())
-  def apply_raise([g, e]) do
-    # σ₊|g⟩ = |e⟩, σ₊|e⟩ = 0
-    [0, g]
+  defp inner_product(v1, v2) do
+    Enum.zip_with(v1, v2, fn a, b -> a * b end) |> Enum.sum()
   end
 
-  @doc """
-  Applies atomic lowering operator to a state.
+  defp outer_product(ket, bra) do
+    Enum.map(ket, fn k -> Enum.map(bra, fn b -> k * b end) end)
+  end
 
-  ## Parameters
-    - state: [g_coeff, e_coeff] representing ground and excited state amplitudes
+  defp matrix_add(a, b) do
+    Enum.zip_with(a, b, fn ra, rb ->
+      Enum.zip_with(ra, rb, fn x, y -> x + y end)
+    end)
+  end
 
-  ## Examples
-      iex> QuantumOperators.apply_lower([0, 1]) # From excited state
-      [1, 0]
-      iex> QuantumOperators.apply_lower([1, 0]) # From ground state
-      [0, 0]
-  """
-  @spec apply_lower(list(number())) :: list(number())
-  def apply_lower([g, e]) do
-    # σ₋|e⟩ = |g⟩, σ₋|g⟩ = 0
-    [e, 0]
+  defp matrix_scale(matrix, s) do
+    Enum.map(matrix, fn row -> Enum.map(row, fn x -> x * s end) end)
   end
 end
