@@ -152,8 +152,7 @@ defmodule AstroEquations.Physics.Electromagnetism do
     {vx, vy, vz} = velocity
     {bx, by, bz} = b_field
 
-    {q * (ex + vy * bz - vz * by), q * (ey + vz * bx - vx * bz),
-     q * (ez + vx * by - vy * bx)}
+    {q * (ex + vy * bz - vz * by), q * (ey + vz * bx - vx * bz), q * (ez + vx * by - vy * bx)}
   end
 
   @doc """
@@ -409,7 +408,7 @@ defmodule AstroEquations.Physics.Electromagnetism do
   """
   @spec rlc_quality_factor(number, number, number) :: float
   def rlc_quality_factor(inductance, capacitance, resistance) do
-    (1.0 / resistance) * :math.sqrt(inductance / capacitance)
+    1.0 / resistance * :math.sqrt(inductance / capacitance)
   end
 
   # ---------------------------------------------------------------------------
@@ -467,8 +466,7 @@ defmodule AstroEquations.Physics.Electromagnetism do
     {rx, ry, rz} = r_vector
     factor = @mu_0 / (4 * :math.pi()) * q / :math.pow(r_mag, 2)
 
-    {factor * (vy * rz - vz * ry), factor * (vz * rx - vx * rz),
-     factor * (vx * ry - vy * rx)}
+    {factor * (vy * rz - vz * ry), factor * (vz * rx - vx * rz), factor * (vx * ry - vy * rx)}
   end
 
   @doc "Magnetic field surrounding an infinite straight current-carrying wire: B = μ₀I/(2πr)."

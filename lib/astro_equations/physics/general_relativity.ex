@@ -86,7 +86,15 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       -0.3333
   """
   @spec schwarzschild_interval(
-          number, number, number, number, number, number, number, number, number
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number
         ) :: float
   def schwarzschild_interval(m, r, theta, dt, dr, dtheta, dphi, c \\ 1, g \\ 1) do
     rs = 2 * g * m / (c * c)

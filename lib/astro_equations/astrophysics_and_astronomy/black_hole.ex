@@ -207,8 +207,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
     a = spin_param
 
     z1 =
-      1 + :math.pow(1 - a * a, 1 / 3) *
-        (:math.pow(1 + a, 1 / 3) + :math.pow(1 - a, 1 / 3))
+      1 +
+        :math.pow(1 - a * a, 1 / 3) *
+          (:math.pow(1 + a, 1 / 3) + :math.pow(1 - a, 1 / 3))
 
     z2 = :math.sqrt(3 * a * a + z1 * z1)
     sign = if prograde, do: -1, else: 1

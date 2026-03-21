@@ -304,7 +304,17 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.adaptive_optics_error(0.1, 0.15, 0.01, 0.2, 0.5, 0.02, 10, 0.3, 0.001) > 0
       true
   """
-  @spec adaptive_optics_error(number, number, number, number, number, number, number, number, number) ::
+  @spec adaptive_optics_error(
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number
+        ) ::
           float
   def adaptive_optics_error(d_sub, r0, theta, theta_0, tau, tau_0, c_wfs, lambda, f_t) do
     fitting_term = 0.3 * :math.pow(d_sub / r0, 5 / 3)
