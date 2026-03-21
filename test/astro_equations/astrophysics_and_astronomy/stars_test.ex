@@ -94,11 +94,11 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.StarsTest do
     end
   end
 
-
-   describe "kelvin_helmholtz_timescale/3" do
+  describe "kelvin_helmholtz_timescale/3" do
     test "calculates KH timescale for Sun" do
       result = kelvin_helmholtz_timescale(1, 1, 1) |> round()
-      assert result == 31_484_441 # ~31.5 million years
+      # ~31.5 million years
+      assert result == 31_484_441
     end
 
     test "timescale decreases with higher luminosity" do
@@ -178,5 +178,4 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.StarsTest do
       assert mass_luminosity(100) |> Float.round(4) == 32000.0
     end
   end
-
 end
