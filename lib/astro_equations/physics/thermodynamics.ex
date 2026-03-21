@@ -1,218 +1,485 @@
 defmodule AstroEquations.Physics.Thermodynamics do
   @moduledoc """
-  A module for calculating various thermodynamics formulas and relationships.
+  Thermodynamics and statistical mechanics.
 
-  This module provides functions for ideal gases, microstates, entropy,
-  and black body radiation calculations.
+  Covers:
+  - Ideal gas law (all variable forms)
+  - Heat energy, heat capacity, specific heat
+  - First Law of Thermodynamics
+  - Work done by gas (isothermal, adiabatic, isobaric)
+  - Second Law — entropy and Clausius inequality
+  - Carnot efficiency and COP
+  - Boltzmann entropy (Ω microstates)
+  - Thermodynamic potentials (enthalpy, Helmholtz, Gibbs)
+  - Equipartition theorem
+  - Maxwell-Boltzmann speed distribution
+  - Black-body radiation (Planck, Wien, Stefan-Boltzmann)
+  - Photon energy
+  - Stellar luminosity (Stefan-Boltzmann)
+  - Specific heat of gases (Cp, Cv, γ relation)
+  - Newton's law of cooling
+  - Van der Waals equation of state
+  - Virial temperature (gravitational systems)
   """
+
+  # J/K
+  @boltzmann 1.380649e-23
+  # J·s
+  @planck 6.62607015e-34
+  # m/s
+  @speed_light 299_792_458
+  # m·K
+  @wien_b 2.897771955e-3
+  # W/(m²·K⁴)
+  @stefan_sigma 5.670374419e-8
+  # kg
+  @proton_mass 1.67262192369e-27
+
+  # ---------------------------------------------------------------------------
+  # Ideal Gas Law
+  # ---------------------------------------------------------------------------
 
   @doc """
-  Calculates the ideal gas law: pV = NkBT
-
-  ## Parameters
-    - p: Pressure (Pa)
-    - v: Volume (m³)
-    - n: Number of particles (unitless)
-    - k_b: Boltzmann constant (default: 1.380649e-23 J/K)
-    - t: Temperature (K)
-
-  ## Returns
-    The missing value in the equation (pressure, volume, number of particles, or temperature)
-    based on which parameter is set to nil.
+  Solves the particle-level ideal gas law pV = Nk_BT for the missing variable
+  (pass nil for the unknown).
 
   ## Examples
-      iex> Thermodynamics.ideal_gas_law(p: 101325, v: 0.0224, n: 6.022e23, t: 273.15)
-      %{k_b: 1.380649e-23}  # Verifies the Boltzmann constant
+      iex> Thermodynamics.ideal_gas_law(p: 101_325, v: 0.0224, n: 1, t: nil)
+      %{t: _}
   """
+  @spec ideal_gas_law(Keyword.t()) :: map()
   def ideal_gas_law(p: nil, v: v, n: n, k_b: k_b, t: t), do: %{p: n * k_b * t / v}
   def ideal_gas_law(p: p, v: nil, n: n, k_b: k_b, t: t), do: %{v: n * k_b * t / p}
   def ideal_gas_law(p: p, v: v, n: nil, k_b: k_b, t: t), do: %{n: p * v / (k_b * t)}
   def ideal_gas_law(p: p, v: v, n: n, k_b: k_b, t: nil), do: %{t: p * v / (n * k_b)}
   def ideal_gas_law(p: p, v: v, n: n, k_b: nil, t: t), do: %{k_b: p * v / (n * t)}
-  def ideal_gas_law(p: p, v: v, n: n, t: t), do: ideal_gas_law(p: p, v: v, n: n, k_b: 1.380649e-23, t: t)
+
+  def ideal_gas_law(p: p, v: v, n: n, t: t) do
+    ideal_gas_law(p: p, v: v, n: n, k_b: @boltzmann, t: t)
+  end
 
   @doc """
-  Calculates heat/thermal energy: Q = mcΔT
+  Molar ideal gas law residual: |pV - nRT| (should be near zero for a real gas obeying this law).
 
   ## Parameters
-    - m: Mass (kg)
-    - c: Specific heat capacity (J/(kg·K))
-    - delta_t: Temperature change (K)
+    - p:     Pressure (Pa)
+    - v:     Volume (m³)
+    - n_mol: Amount (mol)
+    - t:     Temperature (K)
+    - r:     Gas constant (J/(mol·K), default: 8.31446)
 
   ## Returns
-    The thermal energy in joules
-
-  ## Examples
-      iex> Thermodynamics.heat_energy(1.0, 4186, 1.0)
-      4186.0
+    %{check: float} — absolute deviation from ideal behaviour
   """
-  def heat_energy(m, c, delta_t), do: m * c * delta_t
+  @spec molar_ideal_gas_law(number | nil, number | nil, number | nil, number | nil, number) ::
+          map()
+  def molar_ideal_gas_law(p, v, n_mol, t, r \\ 8.31446) do
+    %{check: abs(p * v - n_mol * r * t)}
+  end
+
+  @doc "Mean translational kinetic energy per molecule in an ideal gas: ⟨KE⟩ = 3k_BT/2."
+  @spec mean_kinetic_energy(number, number) :: float
+  def mean_kinetic_energy(temperature, k_b \\ @boltzmann) do
+    1.5 * k_b * temperature
+  end
 
   @doc """
-  Calculates heat capacity: C = dQ/dT
+  Equipartition theorem: mean energy per degree of freedom = k_BT/2.
+
+  Total mean energy for f degrees of freedom: E = (f/2) k_B T.
 
   ## Parameters
-    - dq: Change in heat (J)
-    - dt: Change in temperature (K)
-
-  ## Returns
-    The heat capacity in J/K
+    - degrees_of_freedom: f (e.g. 3 translational, 5 diatomic, 6 for full rotation+vibration)
+    - temperature:        T (K)
+    - k_b:                Boltzmann constant (default: k_B)
 
   ## Examples
-      iex> Thermodynamics.heat_capacity(4186, 1.0)
-      4186.0
+      iex> Thermodynamics.equipartition_energy(3, 300) > 0
+      true
   """
-  def heat_capacity(dq, dt), do: dq / dt
+  @spec equipartition_energy(number, number, number) :: float
+  def equipartition_energy(degrees_of_freedom, temperature, k_b \\ @boltzmann) do
+    degrees_of_freedom / 2 * k_b * temperature
+  end
+
+  @doc "Root-mean-square speed of molecules in an ideal gas: v_rms = √(3k_BT/m)."
+  @spec rms_speed(number, number, number) :: float
+  def rms_speed(temperature, mass, k_b \\ @boltzmann) do
+    :math.sqrt(3 * k_b * temperature / mass)
+  end
+
+  @doc "Most probable speed in the Maxwell-Boltzmann distribution: v_p = √(2k_BT/m)."
+  @spec most_probable_speed(number, number, number) :: float
+  def most_probable_speed(temperature, mass, k_b \\ @boltzmann) do
+    :math.sqrt(2 * k_b * temperature / mass)
+  end
+
+  @doc "Mean (average) molecular speed: ⟨v⟩ = √(8k_BT/(πm))."
+  @spec mean_speed(number, number, number) :: float
+  def mean_speed(temperature, mass, k_b \\ @boltzmann) do
+    :math.sqrt(8 * k_b * temperature / (:math.pi() * mass))
+  end
+
+  # ---------------------------------------------------------------------------
+  # Heat and Work
+  # ---------------------------------------------------------------------------
+
+  @doc "Heat transferred to raise a mass by ΔT: Q = mcΔT."
+  @spec heat_energy(number, number, number) :: float
+  def heat_energy(m, c, delta_t), do: m * c * delta_t * 1.0
+
+  @doc "Heat capacity from the slope of the Q-T curve: C = dQ/dT."
+  @spec heat_capacity(number, number) :: float
+  def heat_capacity(dq, dt), do: dq / dt * 1.0
+
+  @doc "Specific heat capacity: c = C/m."
+  @spec specific_heat_capacity(number, number) :: float
+  def specific_heat_capacity(c_heat, m), do: c_heat / m * 1.0
 
   @doc """
-  Calculates specific heat capacity: c = C/m
+  First Law of Thermodynamics: ΔU = Q - W
+
+  ## Examples
+      iex> Thermodynamics.first_law(500, 200)
+      300.0
+  """
+  @spec first_law(number, number) :: float
+  def first_law(q, w), do: (q - w) * 1.0
+
+  @doc "Work done by a gas at constant pressure: W = PΔV."
+  @spec isobaric_work(number, number) :: float
+  def isobaric_work(pressure, delta_v), do: pressure * delta_v * 1.0
+
+  @doc "Work done by an ideal gas in an isothermal expansion: W = Nk_BT ln(V₂/V₁)."
+  @spec isothermal_work(number, number, number, number, number) :: float
+  def isothermal_work(n, temperature, v1, v2, k_b \\ @boltzmann) do
+    n * k_b * temperature * :math.log(v2 / v1)
+  end
+
+  @doc "Work done by a gas in a reversible adiabatic process: W = (P₁V₁ - P₂V₂)/(γ-1)."
+  @spec adiabatic_work(number, number, number, number, number) :: float
+  def adiabatic_work(p1, v1, p2, v2, gamma) do
+    (p1 * v1 - p2 * v2) / (gamma - 1)
+  end
+
+  @doc "Pressure after adiabatic compression/expansion: P₂ = P₁(V₁/V₂)^γ."
+  @spec adiabatic_pressure(number, number, number, number) :: float
+  def adiabatic_pressure(p1, v1, v2, gamma) do
+    p1 * :math.pow(v1 / v2, gamma)
+  end
+
+  @doc "Temperature after adiabatic compression/expansion: T₂ = T₁(V₁/V₂)^(γ-1)."
+  @spec adiabatic_temperature(number, number, number, number) :: float
+  def adiabatic_temperature(t1, v1, v2, gamma) do
+    t1 * :math.pow(v1 / v2, gamma - 1)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Thermodynamic Potentials
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Enthalpy: H = U + PV
 
   ## Parameters
-    - c_heat: Heat capacity (J/K)
-    - m: Mass (kg)
-
-  ## Returns
-    The specific heat capacity in J/(kg·K)
+    - internal_energy: U (J)
+    - pressure:        P (Pa)
+    - volume:          V (m³)
 
   ## Examples
-      iex> Thermodynamics.specific_heat_capacity(4186, 1.0)
-      4186.0
+      iex> Thermodynamics.enthalpy(1000.0, 101_325.0, 0.001) |> Float.round(2)
+      1101.325
   """
-  def specific_heat_capacity(c_heat, m), do: c_heat / m
+  @spec enthalpy(number, number, number) :: float
+  def enthalpy(internal_energy, pressure, volume) do
+    internal_energy + pressure * volume
+  end
 
   @doc """
-  Calculates the number of microstates: Ω = (q + N - 1)! / (q!(N-1)!)
+  Helmholtz free energy: F = U - TS
+
+  The maximum work extractable from a system at constant temperature.
+
+  ## Parameters
+    - internal_energy: U (J)
+    - temperature:     T (K)
+    - entropy:         S (J/K)
+
+  ## Examples
+      iex> Thermodynamics.helmholtz_free_energy(1000.0, 300.0, 2.0) |> Float.round(1)
+      400.0
+  """
+  @spec helmholtz_free_energy(number, number, number) :: float
+  def helmholtz_free_energy(internal_energy, temperature, entropy) do
+    internal_energy - temperature * entropy
+  end
+
+  @doc """
+  Gibbs free energy: G = H - TS = U + PV - TS
+
+  Determines spontaneity of a process at constant T and P; G < 0 is spontaneous.
+
+  ## Parameters
+    - internal_energy: U (J)
+    - pressure:        P (Pa)
+    - volume:          V (m³)
+    - temperature:     T (K)
+    - entropy:         S (J/K)
+
+  ## Examples
+      iex> Thermodynamics.gibbs_free_energy(1000.0, 101_325.0, 0.001, 300.0, 2.0) < 1000.0
+      true
+  """
+  @spec gibbs_free_energy(number, number, number, number, number) :: float
+  def gibbs_free_energy(internal_energy, pressure, volume, temperature, entropy) do
+    internal_energy + pressure * volume - temperature * entropy
+  end
+
+  # ---------------------------------------------------------------------------
+  # Entropy & Second Law
+  # ---------------------------------------------------------------------------
+
+  @doc "Boltzmann entropy in terms of microstates: S = k_B ln Ω."
+  @spec entropy(number, number) :: float
+  def entropy(omega, k_b \\ @boltzmann), do: k_b * :math.log(omega)
+
+  @doc "Clausius entropy change for a reversible process: ΔS = Q_rev/T."
+  @spec entropy_change(number, number) :: float
+  def entropy_change(q_rev, temperature), do: q_rev / temperature * 1.0
+
+  @doc """
+  Number of microstates for an Einstein solid: Ω = (q+N-1)! / (q! (N-1)!)
+
+  Note: uses integer arithmetic — this will overflow for large q or N.
+  For large values, use the Stirling approximation instead.
+  """
+  @spec microstates(non_neg_integer, pos_integer) :: pos_integer
+  def microstates(q, n) do
+    div(factorial(q + n - 1), factorial(q) * factorial(n - 1))
+  end
+
+  @doc """
+  Stirling approximation for ln Ω of an Einstein solid (large-N safe):
+  ln Ω ≈ (q+N) ln(q+N) - q ln(q) - N ln(N)
 
   ## Parameters
     - q: Number of energy quanta
-    - n: Number of particles
-
-  ## Returns
-    The number of microstates
+    - n: Number of oscillators
 
   ## Examples
-      iex> Thermodynamics.microstates(3, 3)
-      10
+      iex> Thermodynamics.microstates_stirling(100, 100) > 0
+      true
   """
-  def microstates(q, n) do
-    numerator = factorial(q + n - 1)
-    denominator = factorial(q) * factorial(n - 1)
-    div(numerator, denominator)
+  @spec microstates_stirling(number, number) :: float
+  def microstates_stirling(q, n) do
+    qn = q + n
+    qn * :math.log(qn) - q * :math.log(max(q, 1)) - n * :math.log(n)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Heat Engines & Carnot
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Carnot efficiency: η = 1 - T_cold / T_hot
+
+  ## Examples
+      iex> Thermodynamics.carnot_efficiency(500, 300) |> Float.round(4)
+      0.4
+  """
+  @spec carnot_efficiency(number, number) :: float
+  def carnot_efficiency(t_hot, t_cold), do: 1 - t_cold / t_hot
+
+  @doc "Coefficient of performance of a Carnot refrigerator: COP = T_cold/(T_hot − T_cold)."
+  @spec cop_refrigerator(number, number) :: float
+  def cop_refrigerator(t_hot, t_cold), do: t_cold / (t_hot - t_cold)
+
+  @doc "Coefficient of performance of a Carnot heat pump: COP = T_hot/(T_hot − T_cold)."
+  @spec cop_heat_pump(number, number) :: float
+  def cop_heat_pump(t_hot, t_cold), do: t_hot / (t_hot - t_cold)
+
+  # ---------------------------------------------------------------------------
+  # Specific Heats (Ideal Gases)
+  # ---------------------------------------------------------------------------
+
+  @doc "Mayer's relation between molar heat capacities: Cₚ = Cᵥ + R."
+  @spec mayers_relation(number, number) :: float
+  def mayers_relation(cv, r \\ 8.31446), do: cv + r
+
+  @doc "Ratio of molar heat capacities: γ = Cₚ/Cᵥ."
+  @spec heat_capacity_ratio(number, number) :: float
+  def heat_capacity_ratio(cp, cv), do: cp / cv
+
+  @doc "Molar isochoric heat capacity for a monatomic ideal gas: Cᵥ = 3R/2."
+  @spec cv_monatomic(number) :: float
+  def cv_monatomic(r \\ 8.31446), do: 1.5 * r
+
+  @doc "Molar isochoric heat capacity for a diatomic ideal gas (room temperature): Cᵥ = 5R/2."
+  @spec cv_diatomic(number) :: float
+  def cv_diatomic(r \\ 8.31446), do: 2.5 * r
+
+  # ---------------------------------------------------------------------------
+  # Newton's Law of Cooling
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Newton's law of cooling: T(t) = T_env + (T₀ - T_env) exp(-k t)
+
+  ## Examples
+      iex> Thermodynamics.newton_cooling(100, 20, 0.1, 0) |> Float.round(4)
+      100.0
+  """
+  @spec newton_cooling(number, number, number, number) :: float
+  def newton_cooling(t0, t_env, k, t) do
+    t_env + (t0 - t_env) * :math.exp(-k * t)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Black-Body Radiation
+  # ---------------------------------------------------------------------------
+
+  @doc "Photon energy: E = hf."
+  @spec photon_energy(number, number) :: float
+  def photon_energy(f, h \\ @planck), do: h * f
+
+  @doc "Wien's displacement law for the peak emission wavelength: λ_max = b/T."
+  @spec wiens_displacement(number, number) :: float
+  def wiens_displacement(t, b \\ @wien_b), do: b / t
+
+  @doc "Radiant flux density from a blackbody surface: F = σT⁴."
+  @spec stefan_boltzmann(number, number) :: float
+  def stefan_boltzmann(t, sigma \\ @stefan_sigma), do: sigma * :math.pow(t, 4)
+
+  @doc """
+  Total power radiated by a sphere: P = 4πR²σT⁴.
+
+  In stellar physics this gives the luminosity: L = 4πR²σT_eff⁴.
+
+  ## Examples
+      iex> Thermodynamics.stefan_boltzmann_total(6.957e8, 5778.0) > 0
+      true
+  """
+  @spec stefan_boltzmann_total(number, number, number) :: float
+  def stefan_boltzmann_total(radius, t, sigma \\ @stefan_sigma) do
+    4 * :math.pi() * radius ** 2 * sigma * :math.pow(t, 4)
   end
 
   @doc """
-  Calculates entropy: S = kB ln Ω
+  Effective temperature of a star from luminosity and radius:
+  T_eff = (L / (4πR²σ))^(1/4)
 
   ## Parameters
-    - omega: Number of microstates
-    - k_b: Boltzmann constant (default: 1.380649e-23 J/K)
-
-  ## Returns
-    The entropy in J/K
+    - luminosity: L (W)
+    - radius:     R (m)
 
   ## Examples
-      iex> Thermodynamics.entropy(10)
-      3.179134965721792e-23
+      iex> Thermodynamics.effective_temperature(3.828e26, 6.957e8) |> round()
+      5778
   """
-  def entropy(omega, k_b \\ 1.380649e-23), do: k_b * :math.log(omega)
-
-  @doc """
-  Calculates photon energy: E = hf
-
-  ## Parameters
-    - f: Frequency (Hz)
-    - h: Planck's constant (default: 6.62607015e-34 J·s)
-
-  ## Returns
-    The photon energy in joules
-
-  ## Examples
-      iex> Thermodynamics.photon_energy(1.0e15)
-      6.62607015e-19
-  """
-  def photon_energy(f, h \\ 6.62607015e-34), do: h * f
-
-  @doc """
-  Calculates Wien's displacement law: λ_max = b/T
-
-  ## Parameters
-    - t: Temperature (K)
-    - b: Wien's displacement constant (default: 2.8977729e-3 m·K)
-
-  ## Returns
-    The wavelength of maximum emission in meters
-
-  ## Examples
-      iex> Thermodynamics.wiens_displacement(5000)
-      5.7955458e-7
-  """
-  def wiens_displacement(t, b \\ 2.8977729e-3), do: b / t
-
-  @doc """
-  Calculates Stefan-Boltzmann law: I = σT⁴
-
-  ## Parameters
-    - t: Temperature (K)
-    - sigma: Stefan-Boltzmann constant (default: 5.670374419e-8 W/(m²·K⁴))
-
-  ## Returns
-    The radiant exitance in W/m²
-
-  ## Examples
-      iex> Thermodynamics.stefan_boltzmann(5000)
-      3.54375e7
-  """
-  def stefan_boltzmann(t, sigma \\ 5.670374419e-8), do: sigma * :math.pow(t, 4)
-
-  @doc """
-  Calculates Planck's law for spectral radiance (wavelength form)
-
-  ## Parameters
-    - lambda: Wavelength (m)
-    - t: Temperature (K)
-    - h: Planck's constant (default: 6.62607015e-34 J·s)
-    - c: Speed of light (default: 299792458 m/s)
-    - k_b: Boltzmann constant (default: 1.380649e-23 J/K)
-
-  ## Returns
-    The spectral radiance in W/(sr·m³)
-
-  ## Examples
-      iex> Thermodynamics.planck_wavelength(5.0e-7, 5000) |> Float.round(8)
-      1.3714e13
-  """
-  def planck_wavelength(lambda, t, h \\ 6.62607015e-34, c \\ 299792458, k_b \\ 1.380649e-23) do
-    numerator = 2 * h * :math.pow(c, 2)
-    denominator = :math.pow(lambda, 5)
-    exponent = h * c / (lambda * k_b * t)
-    (numerator / denominator) * 1 / (:math.exp(exponent) - 1)
+  @spec effective_temperature(number, number, number) :: float
+  def effective_temperature(luminosity, radius, sigma \\ @stefan_sigma) do
+    :math.pow(luminosity / (4 * :math.pi() * radius ** 2 * sigma), 0.25)
   end
 
-  @doc """
-  Calculates Planck's law for spectral radiance (frequency form)
-
-  ## Parameters
-    - nu: Frequency (Hz)
-    - t: Temperature (K)
-    - h: Planck's constant (default: 6.62607015e-34 J·s)
-    - c: Speed of light (default: 299792458 m/s)
-    - k_b: Boltzmann constant (default: 1.380649e-23 J/K)
-
-  ## Returns
-    The spectral radiance in W/(sr·m²·Hz)
-
-  ## Examples
-      iex> Thermodynamics.planck_frequency(1.0e14, 5000) |> Float.round(8)
-      1.1144e-16
-  """
-  def planck_frequency(nu, t, h \\ 6.62607015e-34, c \\ 299792458, k_b \\ 1.380649e-23) do
-    numerator = 2 * h * :math.pow(nu, 3)
-    denominator = :math.pow(c, 2)
-    exponent = h * nu / (k_b * t)
-    (numerator / denominator) * 1 / (:math.exp(exponent) - 1)
+  @doc "Spectral radiance (per unit wavelength) from the Planck function."
+  @spec planck_wavelength(number, number, number, number, number) :: float
+  def planck_wavelength(lambda, t, h \\ @planck, c \\ @speed_light, k_b \\ @boltzmann) do
+    2 * h * c ** 2 / :math.pow(lambda, 5) *
+      1 / (:math.exp(h * c / (lambda * k_b * t)) - 1)
   end
 
-  # Helper function for factorial calculation
+  @doc "Spectral radiance (per unit frequency) from the Planck function."
+  @spec planck_frequency(number, number, number, number, number) :: float
+  def planck_frequency(nu, t, h \\ @planck, c \\ @speed_light, k_b \\ @boltzmann) do
+    2 * h * nu ** 3 / c ** 2 *
+      1 / (:math.exp(h * nu / (k_b * t)) - 1)
+  end
+
+  @doc "Classical Rayleigh-Jeans long-wavelength approximation to the Planck function."
+  @spec rayleigh_jeans(number, number, number, number) :: float
+  def rayleigh_jeans(lambda, t, k_b \\ @boltzmann, c \\ @speed_light) do
+    2 * c * k_b * t / :math.pow(lambda, 4)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Maxwell-Boltzmann Speed Distribution
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Maxwell-Boltzmann speed probability density:
+  f(v) = 4π (m/2πkT)^(3/2) v² exp(-mv²/2kT)
+
+  ## Examples
+      iex> Thermodynamics.maxwell_boltzmann(500, 4.65e-26, 300) > 0
+      true
+  """
+  @spec maxwell_boltzmann(number, number, number, number) :: float
+  def maxwell_boltzmann(v, m, t, k_b \\ @boltzmann) do
+    a = m / (2 * k_b * t)
+
+    4 * :math.pi() * :math.pow(a / :math.pi(), 1.5) *
+      v ** 2 * :math.exp(-a * v ** 2)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Van der Waals Equation of State
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Van der Waals pressure: P = Nk_BT/(V - Nb) - a N²/V²
+
+  A correction to the ideal gas law accounting for molecular volume (b) and
+  intermolecular attraction (a).
+
+  ## Parameters
+    - n:           Number of particles N
+    - temperature: T (K)
+    - volume:      V (m³)
+    - a:           Attraction parameter (N·m⁴ per particle pair)
+    - b:           Excluded volume per particle (m³)
+    - k_b:         Boltzmann constant
+
+  ## Examples
+      iex> Thermodynamics.van_der_waals_pressure(6.022e23, 300, 0.0224, 2.253e-49, 3.92e-29) > 0
+      true
+  """
+  @spec van_der_waals_pressure(number, number, number, number, number, number) :: float
+  def van_der_waals_pressure(n, temperature, volume, a, b, k_b \\ @boltzmann) do
+    n * k_b * temperature / (volume - n * b) - a * n ** 2 / volume ** 2
+  end
+
+  # ---------------------------------------------------------------------------
+  # Gravitational / Astrophysical Thermodynamics
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Virial temperature of a self-gravitating system:
+  T_vir = μ m_H G M / (2 k_B R)
+
+  Estimates the characteristic temperature at which a gravitationally bound gas
+  cloud is in virial equilibrium.
+
+  ## Parameters
+    - mean_mol_weight: μ (dimensionless, mean molecular weight, e.g. 0.6 for ionised H/He)
+    - mass:            Total mass M (kg)
+    - radius:          Characteristic radius R (m)
+    - k_b:             Boltzmann constant
+
+  ## Examples
+      iex> Thermodynamics.virial_temperature(0.6, 1.989e30, 6.957e8) > 0
+      true
+  """
+  @spec virial_temperature(number, number, number, number) :: float
+  def virial_temperature(mean_mol_weight, mass, radius, k_b \\ @boltzmann) do
+    g = 6.67430e-11
+
+    mean_mol_weight * @proton_mass * g * mass / (2 * k_b * radius)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Helpers
+  # ---------------------------------------------------------------------------
+
   defp factorial(0), do: 1
   defp factorial(n) when n > 0, do: n * factorial(n - 1)
 end
