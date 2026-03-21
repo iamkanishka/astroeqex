@@ -11,7 +11,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHoleTest do
     test "radius increases linearly with mass" do
       r1 = schwarzschild_radius(1.989e30)
       r2 = schwarzschild_radius(2 * 1.989e30)
-      assert Float.round(r2/r1, 4) == 2.0
+      assert Float.round(r2 / r1, 4) == 2.0
     end
   end
 
