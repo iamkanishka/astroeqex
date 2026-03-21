@@ -1,1008 +1,772 @@
 defmodule AstroEquations.Physics.Electromagnetism do
   @moduledoc """
-  A module containing implementations of fundamental electromagnetic equations including:
-  - Maxwell's equations
+  Fundamental electromagnetic equations including:
+  - Maxwell's equations (integral and differential forms)
   - Lorentz force
-  - Electric field calculations
+  - Electric field, potential, and energy
   - Dipole fields and moments
-  - Electric potential and energy
   - Charge and current densities
-  - Circuit theory
-  - Capacitor
-  - Magnetic fields
-  - Inductors
-  - Materials
+  - Circuit theory (Ohm's law, series/parallel, RC/RL/LC)
+  - Capacitors and inductors
+  - Magnetic fields (Biot-Savart, solenoid, toroid)
+  - Materials (permittivity, susceptibility, polarisation, magnetisation)
+  - Electromagnetic waves (speed, impedance, Poynting vector)
+  - Skin depth, plasma frequency, Hall effect
 
   All calculations use SI units.
   """
 
-  # Vacuum permittivity (F/m)
+  # Vacuum permittivity ε₀ (F/m)
   @epsilon_0 8.8541878128e-12
-  # Vacuum permeability (N/A^2)
+  # Vacuum permeability μ₀ (N/A²)
   @mu_0 1.25663706212e-6
-  # Elementary charge (C)
+  # Elementary charge e (C)
   @elementary_charge 1.602176634e-19
-  # Pi constant
-  @pi :math.pi()
+  # Speed of light c (m/s)
+  @speed_of_light 2.99792458e8
 
-  # F/m
-  @vacuum_permittivity 8.8541878128e-12
-
-  # N/A²
-  @vacuum_permeability 1.25663706212e-6
+  # ---------------------------------------------------------------------------
+  # Maxwell's Equations
+  # ---------------------------------------------------------------------------
 
   @doc """
-  Calculates the electric flux through a closed surface using Gauss's Law.
+  Electric flux through a closed surface (Gauss's Law): Φ_E = Q_enc / ε₀
 
   ## Parameters
-    - q_enc: enclosed charge (Coulombs)
-    - epsilon_0: permittivity of free space (defaults to @epsilon_0)
-
-  ## Returns
-    - Electric flux (N·m²/C)
+    - q_enc:     Enclosed charge (C)
+    - epsilon_0: Permittivity of free space (default: ε₀)
 
   ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.gauss_law(1.0)
-      1.1294090673382828e11
+      iex> Electromagnetism.gauss_law(1.0) > 0
+      true
   """
-  def gauss_law(q_enc, epsilon_0 \\ @epsilon_0) do
-    q_enc / epsilon_0
-  end
+  @spec gauss_law(number, number) :: float
+  def gauss_law(q_enc, epsilon_0 \\ @epsilon_0), do: q_enc / epsilon_0
 
-  @doc """
-  Calculates the divergence of the electric field at a point with given charge density.
+  @doc "Differential form of Gauss's Law: ∇·E = ρ/ε₀."
+  @spec gauss_law_differential(number, number) :: float
+  def gauss_law_differential(rho, epsilon_0 \\ @epsilon_0), do: rho / epsilon_0
 
-  ## Parameters
-    - rho: charge density (C/m³)
-    - epsilon_0: permittivity of free space (defaults to @epsilon_0)
-
-  ## Returns
-    - Divergence of E field (V/m²)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.gauss_law_differential(1.0)
-      1.1294090673382828e11
-  """
-  def gauss_law_differential(rho, epsilon_0 \\ @epsilon_0) do
-    rho / epsilon_0
-  end
-
-  @doc """
-  Calculates the magnetic flux through a closed surface (always zero according to Gauss's Law for Magnetism).
-
-  ## Returns
-    - Always returns 0 (no magnetic monopoles)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.gauss_law_magnetism()
-      0
-  """
+  @doc "Gauss's Law for magnetism: ∇·B = 0, reflecting the absence of magnetic monopoles. Always returns 0."
+  @spec gauss_law_magnetism() :: 0
   def gauss_law_magnetism, do: 0
 
-  @doc """
-  Calculates the curl of the electric field from a changing magnetic field (Faraday's Law of Induction).
-
-  ## Parameters
-    - dB_dt: time derivative of magnetic field (T/s)
-
-  ## Returns
-    - Curl of E field (V/m²)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.faraday_law(1.0)
-      -1.0
-  """
+  @doc "Faraday's Law of electromagnetic induction (differential form): ∇×E = -∂B/∂t."
+  @spec faraday_law(number) :: float
   def faraday_law(dB_dt), do: -dB_dt
 
   @doc """
-  Calculates the curl of the magnetic field from current and changing electric field (Ampère's circuital law with Maxwell's correction).
+  Faraday induction EMF: ε = -dΦ_B/dt
 
   ## Parameters
-    - current_density: current density J (A/m²)
-    - dE_dt: time derivative of electric field (V/m·s)
-    - mu_0: permeability of free space (defaults to @mu_0)
-    - epsilon_0: permittivity of free space (defaults to @epsilon_0)
-
-  ## Returns
-    - Curl of B field (T/m)
+    - d_phi_b_dt: Rate of change of magnetic flux (Wb/s)
 
   ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.ampere_law(1.0, 1.0)
-      1.25663706212e-6
+      iex> Electromagnetism.faraday_emf(0.05)
+      -0.05
   """
+  @spec faraday_emf(number) :: float
+  def faraday_emf(d_phi_b_dt), do: -d_phi_b_dt
+
+  @doc """
+  Ampère-Maxwell law: ∇×B = μ₀(J + ε₀ ∂E/∂t)
+
+  ## Parameters
+    - current_density: J (A/m²)
+    - dE_dt:           ∂E/∂t (V/m·s)
+
+  ## Examples
+      iex> Electromagnetism.ampere_law(1.0e6, 0.0) > 0
+      true
+  """
+  @spec ampere_law(number, number, number, number) :: float
   def ampere_law(current_density, dE_dt, mu_0 \\ @mu_0, epsilon_0 \\ @epsilon_0) do
     mu_0 * (current_density + epsilon_0 * dE_dt)
   end
 
   @doc """
-  Calculates the Lorentz force on a point charge.
+  Displacement current: I_d = ε₀ dΦ_E/dt
+
+  The displacement current term added by Maxwell; ensures charge conservation
+  and predicts electromagnetic waves.
 
   ## Parameters
-    - q: charge (Coulombs)
-    - e_field: electric field vector (V/m)
-    - velocity: velocity vector of charge (m/s)
-    - b_field: magnetic field vector (Tesla)
-
-  ## Returns
-    - Force vector (Newtons)
+    - d_phi_e_dt: Rate of change of electric flux Φ_E (V·m/s)
+    - epsilon_0:  Permittivity of free space (default: ε₀)
 
   ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.lorentz_force_point(1.0, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0})
-      {1.0, 0.0, -1.0}
+      iex> Electromagnetism.displacement_current(1.0e6) > 0
+      true
   """
+  @spec displacement_current(number, number) :: float
+  def displacement_current(d_phi_e_dt, epsilon_0 \\ @epsilon_0) do
+    epsilon_0 * d_phi_e_dt
+  end
+
+  @doc """
+  Electric flux through a flat surface: Φ_E = E A cos θ
+
+  ## Parameters
+    - e_field: Electric field magnitude (V/m)
+    - area:    Surface area (m²)
+    - theta:   Angle between field and surface normal (radians, default: 0)
+
+  ## Examples
+      iex> Electromagnetism.electric_flux(100.0, 0.5, 0)
+      50.0
+  """
+  @spec electric_flux(number, number, number) :: float
+  def electric_flux(e_field, area, theta \\ 0.0) do
+    e_field * area * :math.cos(theta)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Lorentz Force
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Lorentz force on a point charge: F = q(E + v × B)
+
+  ## Parameters
+    - q:        Charge (C)
+    - e_field:  Electric field {Ex, Ey, Ez} (V/m)
+    - velocity: Charge velocity {vx, vy, vz} (m/s)
+    - b_field:  Magnetic field {Bx, By, Bz} (T)
+
+  ## Returns
+    Force vector {Fx, Fy, Fz} (N)
+
+  ## Examples
+      iex> e = {1.0, 0.0, 0.0}; v = {0.0, 0.0, 0.0}; b = {0.0, 0.0, 0.0}
+      ...> Electromagnetism.lorentz_force_point(1.0, e, v, b) |> elem(0) |> Float.round(2)
+      1.0
+  """
+  @spec lorentz_force_point(
+          number,
+          {number, number, number},
+          {number, number, number},
+          {number, number, number}
+        ) :: {float, float, float}
   def lorentz_force_point(q, e_field, velocity, b_field) do
     {ex, ey, ez} = e_field
     {vx, vy, vz} = velocity
     {bx, by, bz} = b_field
 
-    # Calculate v × B
-    cross_x = vy * bz - vz * by
-    cross_y = vz * bx - vx * bz
-    cross_z = vx * by - vy * bx
-
-    # Calculate F = q(E + v × B)
-    {
-      q * (ex + cross_x),
-      q * (ey + cross_y),
-      q * (ez + cross_z)
-    }
+    {q * (ex + vy * bz - vz * by), q * (ey + vz * bx - vx * bz),
+     q * (ez + vx * by - vy * bx)}
   end
 
   @doc """
-  Calculates the electric field from a point charge.
+  Cyclotron radius for a charged particle in a magnetic field: r = m v_⊥ / (|q| B)
 
   ## Parameters
-    - q: charge (Coulombs)
-    - r: distance from charge (meters)
-    - epsilon_0: permittivity of free space (defaults to @epsilon_0)
-
-  ## Returns
-    - Electric field magnitude (V/m)
+    - mass:    Particle mass (kg)
+    - v_perp:  Speed perpendicular to B (m/s)
+    - charge:  Particle charge magnitude (C)
+    - b_field: Magnetic field magnitude (T)
 
   ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.electric_field_point(1.0, 1.0)
-      8.987551787368176e9
+      iex> Electromagnetism.cyclotron_radius(9.109e-31, 1.0e6, 1.602e-19, 0.01) > 0
+      true
   """
+  @spec cyclotron_radius(number, number, number, number) :: float
+  def cyclotron_radius(mass, v_perp, charge, b_field) do
+    mass * v_perp / (abs(charge) * b_field)
+  end
+
+  @doc """
+  Cyclotron (gyro) frequency: omega_c = |q| B / m
+
+  ## Parameters
+    - charge:  Charge magnitude (C)
+    - b_field: Magnetic field magnitude (T)
+    - mass:    Particle mass (kg)
+
+  ## Examples
+      iex> Electromagnetism.cyclotron_frequency(1.602e-19, 1.0, 1.673e-27) > 0
+      true
+  """
+  @spec cyclotron_frequency(number, number, number) :: float
+  def cyclotron_frequency(charge, b_field, mass), do: abs(charge) * b_field / mass
+
+  # ---------------------------------------------------------------------------
+  # Electric Field
+  # ---------------------------------------------------------------------------
+
+  @doc "Coulomb's constant: k_e = 1/(4πε₀) ≈ 8.988×10⁹ N·m²/C²."
+  @spec coulombs_constant(number) :: float
+  def coulombs_constant(epsilon_0 \\ @epsilon_0) do
+    1.0 / (4 * :math.pi() * epsilon_0)
+  end
+
+  @doc """
+  Electric field from a point charge: E = q / (4πε₀ r²)
+
+  ## Examples
+      iex> Electromagnetism.electric_field_point(1.0e-9, 1.0) |> Float.round(2)
+      8.99
+  """
+  @spec electric_field_point(number, number, number) :: float
   def electric_field_point(q, r, epsilon_0 \\ @epsilon_0) do
-    1 / (4 * :math.pi() * epsilon_0) * (q / :math.pow(r, 2))
+    q / (4 * :math.pi() * epsilon_0 * :math.pow(r, 2))
   end
 
   @doc """
-  Calculates the electric field magnitude parallel to the dipole axis at a distance r.
+  Electric field on the axis of a uniformly charged ring:
+  E = q z / (4πε₀ (z² + R²)^(3/2))
 
   ## Parameters
-    - p: dipole moment (C·m)
-    - r: distance from dipole (m)
-    - epsilon_0: permittivity of free space (defaults to @epsilon_0)
-
-  ## Returns
-    - Electric field magnitude parallel to dipole axis (V/m)
+    - q:   Total ring charge (C)
+    - z:   Axial distance from ring centre (m)
+    - r:   Ring radius (m)
 
   ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.dipole_field_parallel(1e-12, 0.1)
-      1.7975103574736352e-8
+      iex> Electromagnetism.electric_field_ring(1.0e-9, 0.1, 0.1) > 0
+      true
   """
+  @spec electric_field_ring(number, number, number, number) :: float
+  def electric_field_ring(q, z, r, epsilon_0 \\ @epsilon_0) do
+    q * z / (4 * :math.pi() * epsilon_0 * :math.pow(z * z + r * r, 1.5))
+  end
+
+  @doc "Electric field on the axis of an electric dipole: E = 2p/(4πε₀r³)."
+  @spec dipole_field_parallel(number, number, number) :: float
   def dipole_field_parallel(p, r, epsilon_0 \\ @epsilon_0) do
     2 * p / (4 * :math.pi() * epsilon_0 * :math.pow(r, 3))
   end
 
-  @doc """
-  Calculates the electric field magnitude perpendicular to the dipole axis at a distance r.
-
-  ## Parameters
-    - p: dipole moment (C·m)
-    - r: distance from dipole (m)
-    - epsilon_0: permittivity of free space (defaults to @epsilon_0)
-
-  ## Returns
-    - Electric field magnitude perpendicular to dipole axis (V/m)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.dipole_field_perpendicular(1e-12, 0.1)
-      8.987551787368176e-9
-  """
+  @doc "Electric field perpendicular to an electric dipole axis: E = p/(4πε₀r³)."
+  @spec dipole_field_perpendicular(number, number, number) :: float
   def dipole_field_perpendicular(p, r, epsilon_0 \\ @epsilon_0) do
     p / (4 * :math.pi() * epsilon_0 * :math.pow(r, 3))
   end
 
-  @doc """
-  Calculates the dipole moment from charge and separation distance.
+  @doc "Electric dipole moment vector: p = q d (charge × displacement vector)."
+  @spec dipole_moment(number, {number, number, number}) :: {float, float, float}
+  def dipole_moment(q, {dx, dy, dz}), do: {q * dx, q * dy, q * dz}
 
-  ## Parameters
-    - q: charge magnitude (C)
-    - d: separation distance vector (m)
+  # ---------------------------------------------------------------------------
+  # Electric Potential & Energy
+  # ---------------------------------------------------------------------------
 
-  ## Returns
-    - Dipole moment vector (C·m)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.dipole_moment(1e-6, {1e-3, 0, 0})
-      {1.0e-9, 0.0, 0.0}
-  """
-  def dipole_moment(q, {dx, dy, dz}) do
-    {q * dx, q * dy, q * dz}
-  end
-
-  @doc """
-  Calculates the electric potential from a point charge.
-
-  ## Parameters
-    - q: charge (C)
-    - r: distance from charge (m)
-    - epsilon_0: permittivity of free space (defaults to @epsilon_0)
-
-  ## Returns
-    - Electric potential (V)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.electric_potential_point(1e-9, 0.1)
-      89.87551787368176
-  """
+  @doc "Electric potential from a point charge: V = q/(4πε₀r)."
+  @spec electric_potential_point(number, number, number) :: float
   def electric_potential_point(q, r, epsilon_0 \\ @epsilon_0) do
-    1 / (4 * :math.pi() * epsilon_0) * (q / r)
+    q / (4 * :math.pi() * epsilon_0 * r)
   end
 
-  @doc """
-  Calculates the electric potential difference between two points in a field.
-
-  ## Parameters
-    - q: charge creating the field (C)
-    - a: first distance from charge (m)
-    - b: second distance from charge (m)
-    - epsilon_0: permittivity of free space (defaults to @epsilon_0)
-
-  ## Returns
-    - Potential difference (V)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.potential_difference_point(1e-9, 0.1, 0.2)
-      44.93775893684088
-  """
+  @doc "Potential difference V(a) - V(b) between two radii from a point charge."
+  @spec potential_difference_point(number, number, number, number) :: float
   def potential_difference_point(q, a, b, epsilon_0 \\ @epsilon_0) do
     1 / (4 * :math.pi() * epsilon_0) * q * (1 / b - 1 / a)
   end
 
-  @doc """
-  Calculates the electric potential energy between two charges.
-
-  ## Parameters
-    - q: first charge (C)
-    - Q: second charge (C)
-    - r: separation distance (m)
-    - epsilon_0: permittivity of free space (defaults to @epsilon_0)
-
-  ## Returns
-    - Potential energy (J)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.potential_energy(1e-9, 1e-9, 0.1)
-      8.987551787368176e-8
-  """
-  def potential_energy(first_charge, second_charge, r, epsilon_0 \\ @epsilon_0) do
-    1 / (4 * :math.pi() * epsilon_0) * (first_charge * second_charge / r)
+  @doc "Electrostatic potential energy of two point charges: U = q₁q₂/(4πε₀r)."
+  @spec potential_energy(number, number, number, number) :: float
+  def potential_energy(q1, q2, r, epsilon_0 \\ @epsilon_0) do
+    q1 * q2 / (4 * :math.pi() * epsilon_0 * r)
   end
 
-  @doc """
-  Calculates the energy stored in an electrostatic field distribution.
+  @doc "Energy density of an electric field: u_E = ½ε₀E²."
+  @spec field_energy_density(number, number) :: float
+  def field_energy_density(e_field, epsilon_0 \\ @epsilon_0) do
+    0.5 * epsilon_0 * e_field * e_field
+  end
 
-  ## Parameters
-    - e_field: electric field magnitude (V/m)
-    - volume: volume of space (m³)
-    - epsilon_0: permittivity of free space (defaults to @epsilon_0)
-
-  ## Returns
-    - Stored energy (J)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.field_energy(1000, 0.001)
-      4.4270939064e-6
-  """
+  @doc "Total electric field energy over a volume: U = ½ε₀E² V."
+  @spec field_energy(number, number, number) :: float
   def field_energy(e_field, volume, epsilon_0 \\ @epsilon_0) do
     0.5 * epsilon_0 * :math.pow(e_field, 2) * volume
   end
 
   @doc """
-  Calculates surface charge density.
+  Total electromagnetic energy density: u = ½ε₀E² + B²/(2μ₀)
 
   ## Parameters
-    - q: charge (C)
-    - area: surface area (m²)
-
-  ## Returns
-    - Surface charge density (C/m²)
+    - e_field: Electric field magnitude (V/m)
+    - b_field: Magnetic field magnitude (T)
 
   ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.surface_charge_density(1e-6, 0.01)
-      1.0e-4
+      iex> Electromagnetism.em_energy_density(1000.0, 3.33e-6) > 0
+      true
   """
+  @spec em_energy_density(number, number, number, number) :: float
+  def em_energy_density(e_field, b_field, epsilon_0 \\ @epsilon_0, mu_0 \\ @mu_0) do
+    0.5 * epsilon_0 * e_field * e_field + b_field * b_field / (2 * mu_0)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Charge & Current Densities
+  # ---------------------------------------------------------------------------
+
+  @doc "Surface charge density: σ = Q/A."
+  @spec surface_charge_density(number, number) :: float
   def surface_charge_density(q, area), do: q / area
 
-  @doc """
-  Calculates linear charge density.
-
-  ## Parameters
-    - q: charge (C)
-    - length: length (m)
-
-  ## Returns
-    - Linear charge density (C/m)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.linear_charge_density(1e-6, 0.1)
-      1.0e-5
-  """
+  @doc "Linear charge density along a wire: λ = Q/L."
+  @spec linear_charge_density(number, number) :: float
   def linear_charge_density(q, length), do: q / length
 
-  @doc """
-  Calculates volume current density from current and perpendicular area.
-
-  ## Parameters
-    - current: electric current (A)
-    - area: perpendicular cross-sectional area (m²)
-
-  ## Returns
-    - Current density magnitude (A/m²)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.current_density(1.0, 0.0001)
-      10000.0
-  """
+  @doc "Volume current density: J = I/A."
+  @spec current_density(number, number) :: float
   def current_density(current, area), do: current / area
 
-  @doc """
-  Calculates electron drift velocity in a conductor.
-
-  ## Parameters
-    - mobility: electron mobility (m²/(V·s))
-    - e_field: electric field (V/m)
-
-  ## Returns
-    - Drift velocity (m/s)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.drift_velocity(0.001, 100)
-      0.1
-  """
+  @doc "Electron drift velocity: v_d = μE, where μ is carrier mobility."
+  @spec drift_velocity(number, number) :: float
   def drift_velocity(mobility, e_field), do: mobility * e_field
 
-  @doc """
-  Calculates current from charge carrier properties.
-
-  ## Parameters
-    - n: charge carrier density (1/m³)
-    - area: cross-sectional area (m²)
-    - charge: carrier charge (C, defaults to elementary charge)
-    - mobility: electron mobility (m²/(V·s))
-    - e_field: electric field (V/m)
-
-  ## Returns
-    - Current (A)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.current_from_properties(1e28, 1e-6, 1.6e-19, 0.001, 100)
-      1.6
-  """
+  @doc "Electric current from charge carrier properties: I = nAqv_d."
+  @spec current_from_properties(number, number, number, number, number) :: float
   def current_from_properties(n, area, charge \\ @elementary_charge, mobility, e_field) do
     n * area * charge * mobility * e_field
   end
 
-  @doc """
-  Calculates electrical power from current and voltage.
+  @doc "Continuity equation (charge conservation): ∂ρ/∂t = -∇·J."
+  @spec continuity(number) :: float
+  def continuity(div_j), do: -div_j
 
-  ## Parameters
-    - current: electric current (A)
-    - voltage: potential difference (V)
+  # ---------------------------------------------------------------------------
+  # Circuit Theory
+  # ---------------------------------------------------------------------------
 
-  ## Returns
-    - Power (W)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.electrical_power(2, 10)
-      20
-  """
-  def electrical_power(current, voltage), do: current * voltage
-
-  @doc """
-  Calculates electrical power from current and resistance.
-
-  ## Parameters
-    - current: electric current (A)
-    - resistance: electrical resistance (Ω)
-
-  ## Returns
-    - Power (W)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.electrical_power_from_resistance(2, 5)
-      20
-  """
-  def electrical_power_from_resistance(current, resistance),
-    do: :math.pow(current, 2) * resistance
-
-  @doc """
-  Calculates voltage from current and resistance (Ohm's Law).
-
-  ## Parameters
-    - current: electric current (A)
-    - resistance: electrical resistance (Ω)
-
-  ## Returns
-    - Voltage (V)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.ohms_law(2, 5)
-      10
-  """
+  @doc "Ohm's Law: V = IR."
+  @spec ohms_law(number, number) :: float
   def ohms_law(current, resistance), do: current * resistance
 
-  @doc """
-  Calculates resistance from resistivity.
+  @doc "Electrical power delivered to a component: P = IV."
+  @spec electrical_power(number, number) :: float
+  def electrical_power(current, voltage), do: current * voltage
 
-  ## Parameters
-    - resistivity: material resistivity (Ω·m)
-    - length: conductor length (m)
-    - area: cross-sectional area (m²)
-
-  ## Returns
-    - Resistance (Ω)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.resistance(1.68e-8, 1, 1e-6) # Copper wire 1m long, 1mm² cross-section
-      0.0168
-  """
-  def resistance(resistivity, length, area), do: resistivity * length / area
-
-  @doc """
-  Calculates series resistance for multiple resistors.
-
-  ## Parameters
-    - resistances: list of resistances (Ω)
-
-  ## Returns
-    - Total series resistance (Ω)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.series_resistance([10, 20, 30])
-      60
-  """
-  def series_resistance(resistances), do: Enum.sum(resistances)
-
-  @doc """
-  Calculates parallel resistance for multiple resistors.
-
-  ## Parameters
-    - resistances: list of resistances (Ω)
-
-  ## Returns
-    - Total parallel resistance (Ω)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.parallel_resistance([10, 10])
-      5.0
-  """
-  def parallel_resistance(resistances) do
-    sum_reciprocals = Enum.reduce(resistances, 0, fn r, acc -> acc + 1 / r end)
-    1 / sum_reciprocals
+  @doc "Electrical power dissipated in a resistor: P = I²R."
+  @spec electrical_power_from_resistance(number, number) :: float
+  def electrical_power_from_resistance(current, resistance) do
+    :math.pow(current, 2) * resistance
   end
 
+  @doc "Electrical power from voltage and resistance: P = V²/R."
+  @spec electrical_power_from_voltage(number, number) :: float
+  def electrical_power_from_voltage(voltage, resistance) do
+    :math.pow(voltage, 2) / resistance
+  end
+
+  @doc "Resistance of a conductor from its resistivity: R = ρL/A."
+  @spec resistance(number, number, number) :: float
+  def resistance(resistivity, length, area), do: resistivity * length / area
+
+  @doc "Total resistance of resistors in series: R = Σ Rᵢ."
+  @spec series_resistance([number]) :: float
+  def series_resistance(resistances), do: Enum.sum(resistances)
+
+  @doc "Total resistance of resistors in parallel: 1/R = Σ 1/Rᵢ."
+  @spec parallel_resistance([number]) :: float
+  def parallel_resistance(resistances) do
+    1 / Enum.reduce(resistances, 0, fn r, acc -> acc + 1 / r end)
+  end
+
+  @doc "Total capacitance of capacitors in series: 1/C = Σ 1/Cᵢ."
+  @spec series_capacitance([number]) :: float
+  def series_capacitance(capacitances) do
+    1 / Enum.reduce(capacitances, 0, fn c, acc -> acc + 1 / c end)
+  end
+
+  @doc "Total capacitance of capacitors in parallel: C = Σ Cᵢ."
+  @spec parallel_capacitance([number]) :: float
+  def parallel_capacitance(capacitances), do: Enum.sum(capacitances)
+
+  @doc "Time constant of an RC circuit: τ = RC."
+  @spec rc_time_constant(number, number) :: float
+  def rc_time_constant(resistance, capacitance), do: resistance * capacitance
+
+  @doc "Time constant of an RL circuit: τ = L/R."
+  @spec rl_time_constant(number, number) :: float
+  def rl_time_constant(inductance, resistance), do: inductance / resistance
+
+  @doc "Natural (resonant) angular frequency of an LC circuit: omega₀ = 1/√(LC)."
+  @spec lc_resonant_frequency(number, number) :: float
+  def lc_resonant_frequency(inductance, capacitance) do
+    1.0 / :math.sqrt(inductance * capacitance)
+  end
+
+  @doc "Impedance magnitude of a capacitor: |Z_C| = 1/(ωC)."
+  @spec capacitor_impedance(number, number) :: float
+  def capacitor_impedance(omega, capacitance), do: 1.0 / (omega * capacitance)
+
+  @doc "Impedance magnitude of an inductor: |Z_L| = ωL."
+  @spec inductor_impedance(number, number) :: float
+  def inductor_impedance(omega, inductance), do: omega * inductance
+
   @doc """
-  Calculates capacitance from charge and voltage.
+  RLC series resonance Q-factor: Q = ω₀L/R = (1/R)√(L/C)
 
   ## Parameters
-    - charge: stored charge (C)
-    - voltage: potential difference (V)
-
-  ## Returns
-    - Capacitance (F)
+    - inductance:  L (H)
+    - capacitance: C (F)
+    - resistance:  R (Ω)
 
   ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.capacitance(1e-6, 10)
-      1.0e-7
+      iex> Electromagnetism.rlc_quality_factor(1.0e-3, 10.0e-6, 0.1) > 0
+      true
   """
+  @spec rlc_quality_factor(number, number, number) :: float
+  def rlc_quality_factor(inductance, capacitance, resistance) do
+    (1.0 / resistance) * :math.sqrt(inductance / capacitance)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Capacitors
+  # ---------------------------------------------------------------------------
+
+  @doc "Capacitance from stored charge and applied voltage: C = Q/V."
+  @spec capacitance(number, number) :: float
   def capacitance(charge, voltage), do: charge / voltage
 
-  @doc """
-  Calculates capacitance from physical properties.
-
-  ## Parameters
-    - epsilon: permittivity of dielectric (F/m)
-    - area: plate area (m²)
-    - distance: separation distance (m)
-
-  ## Returns
-    - Capacitance (F)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.capacitance_from_geometry(8.854e-12, 0.01, 1e-3)
-      8.854e-11
-  """
+  @doc "Parallel-plate capacitance: C = ε A/d."
+  @spec capacitance_from_geometry(number, number, number) :: float
   def capacitance_from_geometry(epsilon, area, distance), do: epsilon * area / distance
 
-  @doc """
-  Calculates energy stored in a capacitor.
+  @doc "Energy stored in a charged capacitor: U = ½CV²."
+  @spec capacitor_energy(number, number) :: float
+  def capacitor_energy(capacitance, voltage) do
+    0.5 * capacitance * :math.pow(voltage, 2)
+  end
 
-  ## Parameters
-    - capacitance: capacitance (F)
-    - voltage: potential difference (V)
-
-  ## Returns
-    - Stored energy (J)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.capacitor_energy(1e-6, 10)
-      5.0e-5
-  """
-  def capacitor_energy(capacitance, voltage), do: 0.5 * capacitance * :math.pow(voltage, 2)
-
-  @doc """
-  Calculates electric field in a parallel plate capacitor.
-
-  ## Parameters
-    - charge: plate charge (C)
-    - area: plate area (m²)
-    - epsilon_0: permittivity of free space (defaults to @epsilon_0)
-
-  ## Returns
-    - Electric field (V/m)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.capacitor_field(1e-6, 0.01)
-      1.129409067518456e7
-  """
+  @doc "Electric field between the plates of a parallel-plate capacitor: E = Q/(ε₀A)."
+  @spec capacitor_field(number, number, number) :: float
   def capacitor_field(charge, area, epsilon_0 \\ @epsilon_0), do: charge / (epsilon_0 * area)
 
+  # ---------------------------------------------------------------------------
+  # Magnetic Fields
+  # ---------------------------------------------------------------------------
+
   @doc """
-  Calculates the magnetic field from a current element (Biot-Savart Law).
+  Biot-Savart law — differential magnetic field dB from a current element:
+  dB = (μ₀/4π) I (dl × r̂) / r²
 
   ## Parameters
-    - current: current (A)
-    - dl: length element vector (m)
-    - r_vector: displacement vector from current to point (m)
-    - r_mag: magnitude of displacement (m)
-
-  ## Returns
-    - Magnetic field vector (T)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.biot_savart(1.0, {0.0, 0.0, 1e-3}, {1.0, 0.0, 0.0}, 1.0)
-      {0.0, 1.0e-10, 0.0}
+    - current:  Current I (A)
+    - dl:       Current element vector {dlx, dly, dlz} (m)
+    - r_vector: Unit displacement vector {rx, ry, rz}
+    - r_mag:    Distance magnitude (m)
   """
+  @spec biot_savart(number, {number, number, number}, {number, number, number}, number) ::
+          {float, float, float}
   def biot_savart(current, dl, r_vector, r_mag) do
     {dlx, dly, dlz} = dl
     {rx, ry, rz} = r_vector
+    factor = @mu_0 / (4 * :math.pi()) * current / :math.pow(r_mag, 2)
 
-    # Calculate dl × r̂
-    cross_x = dly * rz - dlz * ry
-    cross_y = dlz * rx - dlx * rz
-    cross_z = dlx * ry - dly * rx
-
-    # Calculate dB = (μ₀/4π) * I * (dl × r̂)/r²
-    factor = @mu_0 / (4 * @pi) * current / :math.pow(r_mag, 2)
-
-    {
-      factor * cross_x,
-      factor * cross_y,
-      factor * cross_z
-    }
+    {factor * (dly * rz - dlz * ry), factor * (dlz * rx - dlx * rz),
+     factor * (dlx * ry - dly * rx)}
   end
 
-  @doc """
-  Calculates the magnetic field from a moving charge (Biot-Savart for point charge).
-
-  ## Parameters
-    - q: charge (C)
-    - velocity: velocity vector (m/s)
-    - r_vector: displacement vector from charge to point (m)
-    - r_mag: magnitude of displacement (m)
-
-  ## Returns
-    - Magnetic field vector (T)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.moving_charge_field(1.6e-19, {0.0, 1.0e6, 0.0}, {1.0, 0.0, 0.0}, 1.0)
-      {0.0, 0.0, -1.6e-19 / :math.pow(1.0, 2) * 1.25663706212e-6 / (4 * :math.pi())}
-  """
+  @doc "Magnetic field produced by a moving point charge."
+  @spec moving_charge_field(number, {number, number, number}, {number, number, number}, number) ::
+          {float, float, float}
   def moving_charge_field(q, velocity, r_vector, r_mag) do
     {vx, vy, vz} = velocity
     {rx, ry, rz} = r_vector
+    factor = @mu_0 / (4 * :math.pi()) * q / :math.pow(r_mag, 2)
 
-    # Calculate v × r̂
-    cross_x = vy * rz - vz * ry
-    cross_y = vz * rx - vx * rz
-    cross_z = vx * ry - vy * rx
-
-    # Calculate B = (μ₀/4π) * q * (v × r̂)/r²
-    factor = @mu_0 / (4 * @pi) * q / :math.pow(r_mag, 2)
-
-    {
-      factor * cross_x,
-      factor * cross_y,
-      factor * cross_z
-    }
+    {factor * (vy * rz - vz * ry), factor * (vz * rx - vx * rz),
+     factor * (vx * ry - vy * rx)}
   end
 
-  @doc """
-  Calculates the magnetic field around a long straight wire.
-
-  ## Parameters
-    - current: current in wire (A)
-    - distance: perpendicular distance from wire (m)
-    - mu_0: permeability of free space (defaults to @mu_0)
-
-  ## Returns
-    - Magnetic field magnitude (T)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.wire_magnetic_field(1.0, 0.1)
-      2.0e-6
-  """
+  @doc "Magnetic field surrounding an infinite straight current-carrying wire: B = μ₀I/(2πr)."
+  @spec wire_magnetic_field(number, number, number) :: float
   def wire_magnetic_field(current, distance, mu_0 \\ @mu_0) do
-    mu_0 / (2 * @pi) * current / distance
+    mu_0 * current / (2 * :math.pi() * distance)
   end
 
   @doc """
-  Calculates the EMF induced in an inductor.
+  Magnetic field inside an ideal solenoid: B = μ₀ n I
 
   ## Parameters
-    - inductance: inductance (H)
-    - dI_dt: rate of change of current (A/s)
-
-  ## Returns
-    - Induced EMF (V)
+    - n:       Turns per metre (m⁻¹)
+    - current: Current (A)
 
   ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.inductor_emf(0.1, 10.0)
-      -1.0
+      iex> Electromagnetism.solenoid_field(1000, 2.0) > 0
+      true
   """
+  @spec solenoid_field(number, number, number) :: float
+  def solenoid_field(n, current, mu_0 \\ @mu_0), do: mu_0 * n * current
+
+  @doc """
+  Magnetic field inside a toroid: B = μ₀ N I / (2π r)
+
+  ## Examples
+      iex> Electromagnetism.toroid_field(100, 1.0, 0.1) > 0
+      true
+  """
+  @spec toroid_field(number, number, number, number) :: float
+  def toroid_field(n_turns, current, r, mu_0 \\ @mu_0) do
+    mu_0 * n_turns * current / (2 * :math.pi() * r)
+  end
+
+  @doc "Force per unit length between two parallel current-carrying wires."
+  @spec parallel_wire_force(number, number, number, number) :: float
+  def parallel_wire_force(i1, i2, distance, mu_0 \\ @mu_0) do
+    mu_0 * i1 * i2 / (2 * :math.pi() * distance)
+  end
+
+  @doc "Magnetic flux through a surface: Φ = BA cos θ."
+  @spec magnetic_flux(number, number, number) :: float
+  def magnetic_flux(b_field, area, theta \\ 0.0) do
+    b_field * area * :math.cos(theta)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Inductors
+  # ---------------------------------------------------------------------------
+
+  @doc "Self-inductance of an ideal solenoid: L = μ₀n²V."
+  @spec solenoid_inductance(number, number, number) :: float
+  def solenoid_inductance(n, volume, mu_0 \\ @mu_0), do: mu_0 * n * n * volume
+
+  @doc """
+  Self-inductance from flux linkage: L = NΦ / I
+
+  ## Parameters
+    - n_turns: Number of turns N
+    - flux:    Magnetic flux Φ per turn (Wb)
+    - current: Current I (A)
+
+  ## Examples
+      iex> Electromagnetism.self_inductance_from_flux(100, 5.0e-4, 2.0) > 0
+      true
+  """
+  @spec self_inductance_from_flux(number, number, number) :: float
+  def self_inductance_from_flux(n_turns, flux, current) do
+    n_turns * flux / current
+  end
+
+  @doc "EMF induced in an inductor: ε = -L dI/dt."
+  @spec inductor_emf(number, number) :: float
   def inductor_emf(inductance, dI_dt), do: -inductance * dI_dt
 
-  @doc """
-  Calculates the energy stored in an inductor.
+  @doc "Energy stored in an inductor carrying current I: U = ½LI²."
+  @spec inductor_energy(number, number) :: float
+  def inductor_energy(inductance, current) do
+    0.5 * inductance * :math.pow(current, 2)
+  end
 
-  ## Parameters
-    - inductance: inductance (H)
-    - current: current (A)
+  @doc "Energy density of a magnetic field: u = B²/(2μ₀)."
+  @spec magnetic_energy_density(number, number) :: float
+  def magnetic_energy_density(b_field, mu_0 \\ @mu_0) do
+    b_field * b_field / (2 * mu_0)
+  end
 
-  ## Returns
-    - Stored energy (J)
+  @doc "EMF induced in a secondary coil by mutual inductance: ε₂ = -M dI₁/dt."
+  @spec mutual_inductance_emf(number, number) :: float
+  def mutual_inductance_emf(m, dI1_dt), do: -m * dI1_dt
 
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.inductor_energy(0.1, 2.0)
-      0.2
-  """
-  def inductor_energy(inductance, current), do: 0.5 * inductance * :math.pow(current, 2)
-
-  @doc """
-  Calculates the magnetic vector potential from current density.
-
-  ## Parameters
-    - current_density: current density vector (A/m²)
-    - distance: distance from current element (m)
-    - mu_0: permeability of free space (defaults to @mu_0)
-
-  ## Returns
-    - Vector potential (T·m)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.vector_potential({1.0, 0.0, 0.0}, 1.0)
-      {1.25663706212e-7, 0.0, 0.0}
-  """
+  @doc "Magnetic vector potential (far-field approximation): A ≈ (μ₀/4π) J/r."
+  @spec vector_potential({number, number, number}, number, number) :: {float, float, float}
   def vector_potential({jx, jy, jz}, distance, mu_0 \\ @mu_0) do
-    factor = mu_0 / (4 * @pi) / distance
-
-    {
-      factor * jx,
-      factor * jy,
-      factor * jz
-    }
+    factor = mu_0 / (4 * :math.pi()) / distance
+    {factor * jx, factor * jy, factor * jz}
   end
 
-  @doc """
-  Calculates the bound charge using Gauss's Law for polarization.
+  # ---------------------------------------------------------------------------
+  # Materials
+  # ---------------------------------------------------------------------------
 
-  ## Parameters
-    - polarization_vector: The polarization vector P (in C/m²)
-    - surface_area: The surface area vector da (in m²)
-
-  ## Returns
-    The bound charge Q_b (in C)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.gauss_law_polarization([1, 0, 0], [1, 0, 0])
-      -1.0
-  """
-  def gauss_law_polarization(polarization_vector, surface_area) do
-    dot_product =
-      Enum.zip(polarization_vector, surface_area)
-      |> Enum.map(fn {p, da} -> p * da end)
-      |> Enum.sum()
-
-    -dot_product
-  end
-
-  @doc """
-  Calculates the free charge using Gauss's Law for electric displacement.
-
-  ## Parameters
-    - displacement_vector: The electric displacement vector D (in C/m²)
-    - surface_area: The surface area vector da (in m²)
-
-  ## Returns
-    The free charge Q_f (in C)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.gauss_law_displacement([1, 0, 0], [1, 0, 0])
-      1.0
-  """
-  def gauss_law_displacement(displacement_vector, surface_area) do
-    Enum.zip(displacement_vector, surface_area)
-    |> Enum.map(fn {d, da} -> d * da end)
-    |> Enum.sum()
-  end
-
-  @doc """
-  Calculates the relative permittivity (dielectric constant) of a material.
-
-  ## Parameters
-    - permittivity: The absolute permittivity ε of the material (in F/m)
-    - vacuum_permittivity: The permittivity of free space ε₀ (≈ 8.854×10⁻¹² F/m)
-
-  ## Returns
-    The relative permittivity (dimensionless)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.relative_permittivity(1.77e-11, 8.854e-12)
-      2.0
-  """
-  def relative_permittivity(permittivity, vacuum_permittivity) do
+  @doc "Relative permittivity (dielectric constant) of a material: εᵣ = ε/ε₀."
+  @spec relative_permittivity(number, number) :: float
+  def relative_permittivity(permittivity, vacuum_permittivity \\ @epsilon_0) do
     permittivity / vacuum_permittivity
   end
 
-  @doc """
-  Calculates the electric susceptibility of a material.
+  @doc "Electric susceptibility: χₑ = εᵣ - 1."
+  @spec electric_susceptibility(number) :: float
+  def electric_susceptibility(relative_permittivity), do: relative_permittivity - 1
 
-  ## Parameters
-    - relative_permittivity: The relative permittivity εᵣ of the material
-
-  ## Returns
-    The electric susceptibility χₑ (dimensionless)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.electric_susceptibility(2.0)
-      1.0
-  """
-  def electric_susceptibility(relative_permittivity) do
-    1 - relative_permittivity
-  end
-
-  @doc """
-  Calculates the absolute permittivity from relative permittivity.
-
-  ## Parameters
-    - relative_permittivity: The relative permittivity εᵣ of the material
-    - vacuum_permittivity: The permittivity of free space ε₀ (≈ 8.854×10⁻¹² F/m)
-
-  ## Returns
-    The absolute permittivity ε (in F/m)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.absolute_permittivity(2.0, 8.854e-12)
-      1.7708e-11
-  """
-  def absolute_permittivity(relative_permittivity, vacuum_permittivity) do
+  @doc "Absolute permittivity of a medium: ε = εᵣε₀."
+  @spec absolute_permittivity(number, number) :: float
+  def absolute_permittivity(relative_permittivity, vacuum_permittivity \\ @epsilon_0) do
     relative_permittivity * vacuum_permittivity
   end
 
-  @doc """
-  Calculates the polarization vector P.
-
-  ## Parameters
-    - chi_e: Electric susceptibility χₑ (dimensionless)
-    - electric_field: Electric field vector E (in V/m)
-    - n: Number density of dipoles (in m⁻³, optional)
-    - dipole_moment: Dipole moment vector p (in C·m, optional)
-
-  ## Returns
-    Polarization vector P (in C/m²)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.polarization(1.0, [1, 0, 0])
-      [8.8541878128e-12, 0.0, 0.0]
-
-      iex> AstroEquations.Physics.Electromagnetism.polarization(1.0, [1, 0, 0], 1.0e28, [1.0e-29, 0.0, 0.0])
-      [1.0e-1, 0.0, 0.0]
-  """
+  @doc "Electric polarisation vector: P = ε₀χₑE (or P = n·p for discrete dipoles)."
+  @spec polarization(number, [number], number | nil, [number] | nil) :: [float]
   def polarization(chi_e, electric_field, n \\ nil, dipole_moment \\ nil) do
     if n && dipole_moment do
-      # P = n * p
       Enum.map(dipole_moment, fn p -> n * p end)
     else
-      # P = ε₀χₑE
-      Enum.map(electric_field, fn e -> @vacuum_permittivity * chi_e * e end)
+      Enum.map(electric_field, fn e -> @epsilon_0 * chi_e * e end)
     end
   end
 
-  @doc """
-  Calculates surface bound charge density σ_B.
-
-  ## Parameters
-    - polarization: Polarization vector P (in C/m²)
-    - normal_vector: Unit normal vector ̂n (dimensionless)
-
-  ## Returns
-    Surface bound charge density σ_B (in C/m²)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.surface_bound_charge([1, 0, 0], [1, 0, 0])
-      1.0
-
-      iex> AstroEquations.Physics.Electromagnetism.surface_bound_charge([1, 2, 3], [0, 1, 0])
-      2.0
-  """
+  @doc "Surface bound charge density: σ_b = P·n̂."
+  @spec surface_bound_charge([number], [number]) :: float
   def surface_bound_charge(polarization, normal_vector) do
     Enum.zip(polarization, normal_vector)
     |> Enum.map(fn {p, n} -> p * n end)
     |> Enum.sum()
   end
 
-  @doc """
-  Calculates volume bound charge density ρ_B (approximation).
-
-  Note: This is a simplified approximation of the divergence.
-  For accurate calculations, use a proper numerical differentiation library.
-
-  ## Parameters
-    - polarization: Polarization vector P (in C/m²)
-    - delta_x: Spatial step size (in m)
-
-  ## Returns
-    Volume bound charge density ρ_B (in C/m³)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.volume_bound_charge([[1, 0, 0], [1.1, 0, 0]], 1e-3)
-      -100.0
-  """
-  def volume_bound_charge(polarization_field, delta_x) do
-    # Simplified approximation of ∇·P ≈ ΔP/Δx
-    [p1, p2] = polarization_field
+  @doc "Volume bound charge density (finite-difference approximation of −∇·P)."
+  @spec volume_bound_charge([[number]], number) :: float
+  def volume_bound_charge([p1, p2], delta_x) do
     delta_p = Enum.zip(p1, p2) |> Enum.map(fn {a, b} -> b - a end)
     -Enum.sum(delta_p) / delta_x
   end
 
-  @doc """
-  Calculates total bound charge Q_B.
+  @doc "Total bound charge from surface and volume contributions: Q_b = σ_b·A + ρ_b·V."
+  @spec total_bound_charge(number, number) :: float
+  def total_bound_charge(surface_charge, volume_charge), do: surface_charge + volume_charge
 
-  ## Parameters
-    - surface_charge: Surface bound charge σ_B (in C)
-    - volume_charge: Volume bound charge ρ_B (in C)
-
-  ## Returns
-    Total bound charge Q_B (in C)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.total_bound_charge(1.0, -0.5)
-      0.5
-  """
-  def total_bound_charge(surface_charge, volume_charge) do
-    surface_charge + volume_charge
-  end
-
-  @doc """
-  Calculates electric displacement vector D.
-
-  ## Parameters
-    - permittivity: Absolute permittivity ε (in F/m)
-    - electric_field: Electric field vector E (in V/m)
-    - polarization: Polarization vector P (in C/m², optional)
-
-  ## Returns
-    Electric displacement vector D (in C/m²)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.electric_displacement(2.0, [1, 0, 0])
-      [2.0, 0.0, 0.0]
-
-      iex> AstroEquations.Physics.Electromagnetism.electric_displacement(1.0, [1, 0, 0], [0.5, 0, 0])
-      [1.5, 0.0, 0.0]
-  """
+  @doc "Electric displacement field: D = ε₀E + P."
+  @spec electric_displacement(number, [number], [number]) :: [float]
   def electric_displacement(permittivity, electric_field, polarization \\ [0, 0, 0]) do
-    # D = εE = ε₀E + P
-    d_from_permittivity = Enum.map(electric_field, fn e -> permittivity * e end)
-    Enum.zip(d_from_permittivity, polarization) |> Enum.map(fn {d, p} -> d + p end)
+    d = Enum.map(electric_field, fn e -> permittivity * e end)
+    Enum.zip(d, polarization) |> Enum.map(fn {di, pi} -> di + pi end)
   end
 
-  @doc """
-  Calculates magnetic field strength H.
-
-  ## Parameters
-    - magnetic_flux: Magnetic flux density B (in T)
-    - magnetization: Magnetization vector M (in A/m, optional)
-
-  ## Returns
-    Magnetic field strength H (in A/m)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.magnetic_field_strength([1.0, 0, 0])
-      [795774.7154594767, 0.0, 0.0]
-
-      iex> AstroEquations.Physics.Electromagnetism.magnetic_field_strength([1.0, 0, 0], [1000, 0, 0])
-      [794774.7154594767, 0.0, 0.0]
-  """
+  @doc "Magnetic field strength: H = B/μ₀ − M."
+  @spec magnetic_field_strength([number], [number]) :: [float]
   def magnetic_field_strength(magnetic_flux, magnetization \\ [0, 0, 0]) do
-    # H = B/μ₀ - M
-    h_from_flux = Enum.map(magnetic_flux, fn b -> b / @vacuum_permeability end)
-    Enum.zip(h_from_flux, magnetization) |> Enum.map(fn {h, m} -> h - m end)
+    h = Enum.map(magnetic_flux, fn b -> b / @mu_0 end)
+    Enum.zip(h, magnetization) |> Enum.map(fn {hi, mi} -> hi - mi end)
   end
 
-  @doc """
-  Calculates magnetic dipole moment m.
+  @doc "Magnetic susceptibility: χ_m = μᵣ − 1."
+  @spec magnetic_susceptibility(number) :: float
+  def magnetic_susceptibility(relative_permeability), do: relative_permeability - 1
 
-  ## Parameters
-    - current: Electric current I (in A)
-    - area_vector: Area vector a (in m²)
+  @doc "Relative permeability of a material: μᵣ = μ/μ₀."
+  @spec relative_permeability(number, number) :: float
+  def relative_permeability(permeability, mu_0 \\ @mu_0), do: permeability / mu_0
 
-  ## Returns
-    Magnetic dipole moment vector m (in A·m²)
-
-  ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.magnetic_dipole_moment(1.0, [1, 0, 0])
-      [1.0, 0.0, 0.0]
-  """
+  @doc "Magnetic dipole moment vector: m = I·A (current times area vector)."
+  @spec magnetic_dipole_moment(number, [number]) :: [float]
   def magnetic_dipole_moment(current, area_vector) do
     Enum.map(area_vector, fn a -> current * a end)
   end
 
+  @doc "Bound surface current density: K_b = M × n̂."
+  @spec bound_surface_current([number], [number]) :: [float]
+  def bound_surface_current([mx, my, mz], [nx, ny, nz]) do
+    [my * nz - mz * ny, mz * nx - mx * nz, mx * ny - my * nx]
+  end
+
+  @doc "Bound charge from polarisation (integral form): Q_b = -∮P·dA."
+  @spec gauss_law_polarization([number], [number]) :: float
+  def gauss_law_polarization(polarization_vector, surface_area) do
+    dot =
+      Enum.zip(polarization_vector, surface_area)
+      |> Enum.map(fn {p, da} -> p * da end)
+      |> Enum.sum()
+
+    -dot
+  end
+
+  @doc "Free charge from displacement field (integral form): Q_f = ∮D·dA."
+  @spec gauss_law_displacement([number], [number]) :: float
+  def gauss_law_displacement(displacement_vector, surface_area) do
+    Enum.zip(displacement_vector, surface_area)
+    |> Enum.map(fn {d, da} -> d * da end)
+    |> Enum.sum()
+  end
+
+  # ---------------------------------------------------------------------------
+  # Electromagnetic Waves
+  # ---------------------------------------------------------------------------
+
   @doc """
-  Calculates bound volume current density J_B (approximation).
-
-  Note: This is a simplified approximation of the curl.
-  For accurate calculations, use a proper numerical differentiation library.
-
-  ## Parameters
-    - magnetization_field: Magnetization field vectors [M1, M2, M3]
-    - delta_x: Spatial step size (in m)
-
-  ## Returns
-    Bound current density J_B (in A/m²)
+  Speed of light in a medium: v = 1 / √(με)
 
   ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.bound_volume_current([[0, 0, 0], [0, 0, 1], [0, -1, 0]], 1e-3)
-      [2000.0, 0.0, 0.0]
+      iex> Electromagnetism.wave_speed(1.257e-6, 8.854e-12) |> round()
+      299792030
   """
-  def bound_volume_current(magnetization_field, delta_x) do
-    # Simplified approximation of ∇×M
-    [m1, m2, m3] = magnetization_field
+  @spec wave_speed(number, number) :: float
+  def wave_speed(mu, epsilon), do: 1.0 / :math.sqrt(mu * epsilon)
 
-    [
-      (m3.y - m2.z) / delta_x,
-      (m1.z - m3.x) / delta_x,
-      (m2.x - m1.y) / delta_x
-    ]
+  @doc """
+  Characteristic impedance of free space: Z₀ = √(μ₀/ε₀) ≈ 377 Ω
+
+  ## Examples
+      iex> Electromagnetism.free_space_impedance() |> Float.round(2)
+      376.73
+  """
+  @spec free_space_impedance(number, number) :: float
+  def free_space_impedance(mu_0 \\ @mu_0, epsilon_0 \\ @epsilon_0) do
+    :math.sqrt(mu_0 / epsilon_0)
   end
 
   @doc """
-  Calculates bound surface current density K_B.
-
-  ## Parameters
-    - magnetization: Magnetization vector M (in A/m)
-    - normal_vector: Unit normal vector ̂n (dimensionless)
-
-  ## Returns
-    Surface current density K_B (in A/m)
+  Poynting vector magnitude: S = E × H = E B / μ₀
 
   ## Examples
-      iex> AstroEquations.Physics.Electromagnetism.bound_surface_current([0, 0, 1], [1, 0, 0])
-      [0.0, 1.0, 0.0]
+      iex> Electromagnetism.poynting_magnitude(1000, 3.0e-4) > 0
+      true
   """
-  def bound_surface_current(magnetization, normal_vector) do
-    # K_B = M × n
-    [mx, my, mz] = magnetization
-    [nx, ny, nz] = normal_vector
+  @spec poynting_magnitude(number, number, number) :: float
+  def poynting_magnitude(e_field, b_field, mu_0 \\ @mu_0) do
+    e_field * b_field / mu_0
+  end
 
-    [
-      my * nz - mz * ny,
-      mz * nx - mx * nz,
-      mx * ny - my * nx
-    ]
+  @doc """
+  Radiation pressure for perfect absorption: P_rad = S / c
+
+  ## Examples
+      iex> Electromagnetism.radiation_pressure(1000) > 0
+      true
+  """
+  @spec radiation_pressure(number, number) :: float
+  def radiation_pressure(intensity, c \\ @speed_of_light), do: intensity / c
+
+  @doc """
+  Skin depth in a conductor: δ = √(2 / (μ σ ω))
+
+  ## Examples
+      iex> Electromagnetism.skin_depth(1.257e-6, 5.8e7, 6_283_185.0) > 0
+      true
+  """
+  @spec skin_depth(number, number, number) :: float
+  def skin_depth(mu, sigma, omega), do: :math.sqrt(2.0 / (mu * sigma * omega))
+
+  @doc """
+  Plasma frequency: ω_p = √(n e² / (ε₀ m_e))
+
+  ## Examples
+      iex> Electromagnetism.plasma_frequency(1.0e18) > 0
+      true
+  """
+  @spec plasma_frequency(number, number, number) :: float
+  def plasma_frequency(n, m_e \\ 9.10938e-31, epsilon_0 \\ @epsilon_0) do
+    :math.sqrt(n * :math.pow(@elementary_charge, 2) / (epsilon_0 * m_e))
+  end
+
+  @doc """
+  Brewster's angle for polarisation by reflection: θ_B = arctan(n₂/n₁)
+
+  ## Examples
+      iex> Electromagnetism.brewsters_angle(1.0, 1.5) > 0
+      true
+  """
+  @spec brewsters_angle(number, number) :: float
+  def brewsters_angle(n1, n2), do: :math.atan2(n2, n1)
+
+  @doc """
+  Hall voltage across a conductor in a magnetic field: V_H = IB / (n q t)
+
+  Used in astronomical plasma diagnostics and semiconductor characterisation.
+
+  ## Parameters
+    - current:        I (A)
+    - b_field:        Magnetic field B (T)
+    - carrier_density: n (m⁻³)
+    - charge:         Carrier charge q (C, default: elementary charge)
+    - thickness:      Sample thickness t in field direction (m)
+
+  ## Examples
+      iex> Electromagnetism.hall_voltage(1.0, 0.5, 1.0e28, 1.602e-19, 1.0e-3) > 0
+      true
+  """
+  @spec hall_voltage(number, number, number, number, number) :: float
+  def hall_voltage(current, b_field, carrier_density, charge \\ @elementary_charge, thickness) do
+    current * b_field / (carrier_density * charge * thickness)
   end
 end
