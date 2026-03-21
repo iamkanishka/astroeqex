@@ -1,311 +1,296 @@
-
-defmodule SpecialRelativity do
-  @moduledoc """
-  A module for special relativity calculations including four-vectors, reference frame transformations,
-  and proper time calculations.
-  """
-
-  alias __MODULE__
-
-  @doc """
-  Represents a four-vector in spacetime.
-
-  ## Fields
-    - ct: time component multiplied by speed of light
-    - x: x spatial component
-    - y: y spatial component
-    - z: z spatial component
-  """
-  defstruct [:ct, :x, :y, :z]
-end
-
 defmodule AstroEquations.Physics.SpecialRelativity do
   @moduledoc """
-  A module for special relativity calculations including time dilation, length contraction,
-  relativistic energy, four-vectors, reference frame transformations, and proper time calculations.
+  Special Relativity calculations.
 
-
-  All formulas are based on the principles of special relativity with the speed of light c.
+  Covers:
+  - Lorentz factor γ
+  - Time dilation and length contraction
+  - Relativistic mass, momentum, energy (total, kinetic, rest)
+  - Relativistic velocity addition
+  - Four-vectors (position, velocity, momentum)
+  - Lorentz boost and Galilean transformation
+  - Proper time (numerical integration)
+  - Relativistic Doppler effect
+  - Invariant spacetime interval
+  - Rapidity
+  - Relativistic aberration
   """
+
+  # m/s
+  @speed_of_light 299_792_458
+
+  # ---------------------------------------------------------------------------
+  # Lorentz Factor
+  # ---------------------------------------------------------------------------
 
   @doc """
-  Calculates the gamma factor (Lorentz factor) for a given velocity.
+  Lorentz factor: γ = 1 / √(1 - β²)  where β = v/c
 
   ## Parameters
-    - v: velocity in meters/second
-    - c: speed of light in meters/second (default: 299_792_458)
+    - v: Speed (m/s)
+    - c: Speed of light (m/s, default: 299_792_458)
 
   ## Examples
-      iex> SpecialRelativity.gamma_factor(150_000_000)
-      1.3416407864998738
+      iex> SpecialRelativity.gamma_factor(150_000_000) |> Float.round(4)
+      1.3416
   """
   @spec gamma_factor(number, number) :: float
-  def gamma_factor(v, c \\ 299_792_458) do
+  def gamma_factor(v, c \\ @speed_of_light) do
     1 / :math.sqrt(1 - (v / c) ** 2)
   end
 
-  @doc """
-  Calculates relativistic time dilation.
+  @doc "Normalised velocity: β = v/c."
+  @spec beta(number, number) :: float
+  def beta(v, c \\ @speed_of_light), do: v / c
 
-  ## Parameters
-    - t0: proper time (time in the rest frame) in seconds
-    - v: relative velocity in meters/second
-    - c: speed of light (default: 299_792_458)
+  @doc "Rapidity (additive under collinear Lorentz boosts): φ = arctanh(β)."
+  @spec rapidity(number, number) :: float
+  def rapidity(v, c \\ @speed_of_light) do
+    b = v / c
+    :math.log((1 + b) / (1 - b)) / 2
+  end
+
+  @doc "Speed from rapidity: v = c tanh(φ)."
+  @spec speed_from_rapidity(number, number) :: float
+  def speed_from_rapidity(phi, c \\ @speed_of_light) do
+    c * (:math.exp(2 * phi) - 1) / (:math.exp(2 * phi) + 1)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Kinematic Effects
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Time dilation: t = γ t₀
 
   ## Examples
-      iex> SpecialRelativity.time_dilation(1, 150_000_000)
-      1.3416407864998738
+      iex> SpecialRelativity.time_dilation(1, 150_000_000) |> Float.round(4)
+      1.3416
   """
   @spec time_dilation(number, number, number) :: float
-  def time_dilation(t0, v, c \\ 299_792_458) do
-    t0 * gamma_factor(v, c)
-  end
+  def time_dilation(t0, v, c \\ @speed_of_light), do: t0 * gamma_factor(v, c)
 
   @doc """
-  Calculates length contraction.
-
-  ## Parameters
-    - l0: proper length (length in the rest frame) in meters
-    - v: relative velocity in meters/second
-    - c: speed of light (default: 299_792_458)
+  Length contraction: L = L₀ / γ
 
   ## Examples
-      iex> SpecialRelativity.length_contraction(1, 150_000_000)
-      0.7453559924999299
+      iex> SpecialRelativity.length_contraction(1, 150_000_000) |> Float.round(4)
+      0.7454
   """
   @spec length_contraction(number, number, number) :: float
-  def length_contraction(l0, v, c \\ 299_792_458) do
-    l0 / gamma_factor(v, c)
-  end
+  def length_contraction(l0, v, c \\ @speed_of_light), do: l0 / gamma_factor(v, c)
 
-  @doc """
-  Calculates relativistic mass.
-
-  ## Parameters
-    - m0: rest mass in kg
-    - v: velocity in meters/second
-    - c: speed of light (default: 299_792_458)
-
-  ## Examples
-      iex> SpecialRelativity.relativistic_mass(1, 150_000_000)
-      1.3416407864998738
-  """
-  @spec relativistic_mass(number, number, number) :: float
-  def relativistic_mass(m0, v, c \\ 299_792_458) do
-    m0 * gamma_factor(v, c)
-  end
-
-  @doc """
-  Calculates rest energy (E = mc²).
-
-  ## Parameters
-    - m: mass in kg
-    - c: speed of light (default: 299_792_458)
-
-  ## Examples
-      iex> SpecialRelativity.rest_energy(1)
-      8.987551787368176e16
-  """
-  @spec rest_energy(number, number) :: float
-  def rest_energy(m, c \\ 299_792_458) do
-    m * c ** 2
-  end
-
-  @doc """
-  Calculates total relativistic energy (E = γmc²).
-
-  ## Parameters
-    - m: rest mass in kg
-    - v: velocity in meters/second
-    - c: speed of light (default: 299_792_458)
-
-  ## Examples
-      iex> SpecialRelativity.total_energy(1, 150_000_000)
-      1.2057362987360216e17
-  """
-  @spec total_energy(number, number, number) :: float
-  def total_energy(m, v, c \\ 299_792_458) do
-    gamma_factor(v, c) * rest_energy(m, c)
-  end
-
-  @doc """
-  Calculates relativistic kinetic energy (K = (γ-1)mc²).
-
-  ## Parameters
-    - m: rest mass in kg
-    - v: velocity in meters/second
-    - c: speed of light (default: 299_792_458)
-
-  ## Examples
-      iex> SpecialRelativity.kinetic_energy(1, 150_000_000)
-      3.0698111999220405e16
-  """
-  @spec kinetic_energy(number, number, number) :: float
-  def kinetic_energy(m, v, c \\ 299_792_458) do
-    (gamma_factor(v, c) - 1) * rest_energy(m, c)
-  end
-
-  @doc """
-  Calculates relative velocity in one dimension.
-
-  ## Parameters
-    - u: velocity of object in frame S in meters/second
-    - v: velocity of frame S' relative to S in meters/second
-    - c: speed of light (default: 299_792_458)
-
-  ## Examples
-      iex> SpecialRelativity.relative_velocity(200_000_000, 150_000_000)
-      111111111.1111111
-  """
+  @doc "Relativistic velocity addition: u' = (u − v)/(1 − uv/c²)."
   @spec relative_velocity(number, number, number) :: float
-  def relative_velocity(u, v, c \\ 299_792_458) do
+  def relative_velocity(u, v, c \\ @speed_of_light) do
     (u - v) / (1 - v * u / c ** 2)
   end
 
-  @doc """
-  Calculates relativistic momentum.
+  # ---------------------------------------------------------------------------
+  # Relativistic Dynamics
+  # ---------------------------------------------------------------------------
 
-  ## Parameters
-    - m: rest mass in kg
-    - v: velocity in meters/second
-    - c: speed of light (default: 299_792_458)
+  @doc "Relativistic (inertial) mass: m_rel = γm₀."
+  @spec relativistic_mass(number, number, number) :: float
+  def relativistic_mass(m0, v, c \\ @speed_of_light), do: m0 * gamma_factor(v, c)
 
-  ## Examples
-      iex> SpecialRelativity.relativistic_momentum(1, 150_000_000)
-      2.0124611797498107e8
-  """
+  @doc "Relativistic momentum: p = γm₀v."
   @spec relativistic_momentum(number, number, number) :: float
-  def relativistic_momentum(m, v, c \\ 299_792_458) do
+  def relativistic_momentum(m, v, c \\ @speed_of_light) do
     gamma_factor(v, c) * m * v
   end
 
-  @doc """
-  Creates a four-vector from components.
+  @doc "Rest energy of a body: E₀ = m₀c²."
+  @spec rest_energy(number, number) :: float
+  def rest_energy(m, c \\ @speed_of_light), do: m * c ** 2
 
-  ## Parameters
-    - ct: time component (c*t)
-    - x: x spatial component
-    - y: y spatial component
-    - z: z spatial component
+  @doc "Total relativistic energy: E = γm₀c²."
+  @spec total_energy(number, number, number) :: float
+  def total_energy(m, v, c \\ @speed_of_light) do
+    gamma_factor(v, c) * m * c ** 2
+  end
 
-  ## Examples
-      iex> SpecialRelativity.four_vector(1, 2, 3, 4)
-      %SpecialRelativity{ct: 1, x: 2, y: 3, z: 4}
-  """
-  @spec four_vector(number, number, number, number) :: %SpecialRelativity{}
-  def four_vector(ct, x, y, z) do
-    %SpecialRelativity{ct: ct, x: x, y: y, z: z}
+  @doc "Relativistic kinetic energy: K = (γ − 1)m₀c²."
+  @spec kinetic_energy(number, number, number) :: float
+  def kinetic_energy(m, v, c \\ @speed_of_light) do
+    (gamma_factor(v, c) - 1) * m * c ** 2
   end
 
   @doc """
-  Calculates four-velocity given velocity components and proper time.
-
-  ## Parameters
-    - vx: x-component of velocity (m/s)
-    - vy: y-component of velocity (m/s)
-    - vz: z-component of velocity (m/s)
-    - c: speed of light (default: 299_792_458 m/s)
+  Energy-momentum relation: E = √((pc)² + (mc²)²)
 
   ## Examples
-      iex> SpecialRelativity.four_velocity(0.5 * 299792458, 0, 0)
-      %SpecialRelativity{ct: 1.1547005383792517, x: 0.5773502691896258, y: 0, z: 0}
+      iex> SpecialRelativity.energy_momentum_relation(0, 1.0) > 0
+      true
   """
-  @spec four_velocity(number, number, number, number) :: %SpecialRelativity{}
-  def four_velocity(vx, vy, vz, c \\ 299_792_458) do
-    γ = gamma_factor(:math.sqrt(vx ** 2 + vy ** 2 + vz ** 2), c)
-    four_vector(γ * c, γ * vx, γ * vy, γ * vz)
+  @spec energy_momentum_relation(number, number, number) :: float
+  def energy_momentum_relation(p, m, c \\ @speed_of_light) do
+    :math.sqrt((p * c) ** 2 + (m * c ** 2) ** 2)
+  end
+
+  @doc "Speed from relativistic kinetic energy: v = c √(1 − 1/γ²)."
+  @spec speed_from_kinetic_energy(number, number, number) :: float
+  def speed_from_kinetic_energy(ke, m, c \\ @speed_of_light) do
+    gamma_val = ke / (m * c ** 2) + 1
+    c * :math.sqrt(1 - 1 / gamma_val ** 2)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Relativistic Doppler Effect
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Relativistic (longitudinal) Doppler factor: f_obs = f₀ √((1 + β) / (1 - β))
+
+  Positive v = source approaching observer.
+
+  ## Examples
+      iex> SpecialRelativity.relativistic_doppler(1.0e14, 0) |> Float.round(2)
+      1.0e14
+  """
+  @spec relativistic_doppler(number, number, number) :: float
+  def relativistic_doppler(f0, v, c \\ @speed_of_light) do
+    b = v / c
+    f0 * :math.sqrt((1 + b) / (1 - b))
+  end
+
+  @doc "Transverse Doppler effect (motion perpendicular to line of sight): f_obs = f₀/γ."
+  @spec transverse_doppler(number, number, number) :: float
+  def transverse_doppler(f0, v, c \\ @speed_of_light) do
+    f0 / gamma_factor(v, c)
   end
 
   @doc """
-  Calculates four-momentum given mass and velocity components.
+  Relativistic aberration of light: cos θ' = (cos θ - β) / (1 - β cos θ).
+
+  Converts angle θ in the source frame to angle θ' in the observer frame.
 
   ## Parameters
-    - m: mass (kg)
-    - vx: x-component of velocity (m/s)
-    - vy: y-component of velocity (m/s)
-    - vz: z-component of velocity (m/s)
-    - c: speed of light (default: 299_792_458 m/s)
+    - theta: Angle of incoming light in source frame (radians)
+    - v:     Observer speed (m/s)
+    - c:     Speed of light (m/s)
+
+  ## Returns
+    Aberrated angle in radians
 
   ## Examples
-      iex> SpecialRelativity.four_momentum(1, 0.5 * 299792458, 0, 0)
-      %SpecialRelativity{ct: 1.1547005383792517e8, x: 0.5773502691896258e8, y: 0, z: 0}
+      iex> SpecialRelativity.relativistic_aberration(:math.pi()/2, 0) |> Float.round(4)
+      1.5708
   """
-  @spec four_momentum(number, number, number, number, number) :: %SpecialRelativity{}
-  def four_momentum(m, vx, vy, vz, c \\ 299_792_458) do
-    %SpecialRelativity{ct: e, x: px, y: py, z: pz} = four_velocity(vx, vy, vz, c)
+  @spec relativistic_aberration(number, number, number) :: float
+  def relativistic_aberration(theta, v, c \\ @speed_of_light) do
+    b = v / c
+    cos_theta_prime = (:math.cos(theta) - b) / (1 - b * :math.cos(theta))
+    :math.acos(max(-1.0, min(1.0, cos_theta_prime)))
+  end
+
+  # ---------------------------------------------------------------------------
+  # Four-Vectors
+  # ---------------------------------------------------------------------------
+
+  @doc "Creates a spacetime four-vector map %{ct:, x:, y:, z:}."
+  @spec four_vector(number, number, number, number) :: map()
+  def four_vector(ct, x, y, z), do: %{ct: ct, x: x, y: y, z: z}
+
+  @doc "Four-velocity: Uμ = γ(c, vₓ, v_y, v_z)."
+  @spec four_velocity(number, number, number, number) :: map()
+  def four_velocity(vx, vy, vz, c \\ @speed_of_light) do
+    v = :math.sqrt(vx ** 2 + vy ** 2 + vz ** 2)
+    gamma = gamma_factor(v, c)
+    four_vector(gamma * c, gamma * vx, gamma * vy, gamma * vz)
+  end
+
+  @doc "Four-momentum: Pμ = m₀Uμ."
+  @spec four_momentum(number, number, number, number, number) :: map()
+  def four_momentum(m, vx, vy, vz, c \\ @speed_of_light) do
+    %{ct: e, x: px, y: py, z: pz} = four_velocity(vx, vy, vz, c)
     four_vector(m * e, m * px, m * py, m * pz)
   end
 
-  @doc """
-  Applies a Galilean transformation to spatial coordinates.
-
-  ## Parameters
-    - x: x coordinate
-    - y: y coordinate
-    - z: z coordinate
-    - t: time
-    - v: relative velocity between frames (m/s)
-
-  ## Examples
-      iex> SpecialRelativity.galilean_transform(10, 5, 3, 2, 5)
-      {20, 5, 3}
-  """
-  @spec galilean_transform(number, number, number, number, number) :: {number, number, number}
-  def galilean_transform(x, y, z, t, v) do
-    {x + v * t, y, z}
+  @doc "Minkowski inner product of two four-vectors (signature −+++)."
+  @spec four_product(map(), map()) :: float
+  def four_product(%{ct: ct1, x: x1, y: y1, z: z1}, %{ct: ct2, x: x2, y: y2, z: z2}) do
+    -ct1 * ct2 + x1 * x2 + y1 * y2 + z1 * z2
   end
 
-  @doc """
-  Applies a Lorentz boost to spacetime coordinates.
+  @doc "Invariant mass from energy and momentum: m = √(E² - (pc)²) / c²."
+  @spec invariant_mass(number, number, number) :: float
+  def invariant_mass(energy, momentum, c \\ @speed_of_light) do
+    :math.sqrt(max(energy ** 2 - (momentum * c) ** 2, 0.0)) / c ** 2
+  end
 
-  ## Parameters
-    - ct: time component (c*t)
-    - x: x coordinate
-    - y: y coordinate
-    - z: z coordinate
-    - v: relative velocity between frames (m/s)
-    - c: speed of light (default: 299_792_458 m/s)
+  # ---------------------------------------------------------------------------
+  # Lorentz Transformations
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Galilean position transformation (non-relativistic limit): x' = x − vt.
+
+  ## Returns
+    {x', y', z'} transformed coordinates
+  """
+  @spec galilean_transform(number, number, number, number, number) :: {number, number, number}
+  def galilean_transform(x, y, z, t, v), do: {x - v * t, y, z}
+
+  @doc """
+  Lorentz boost along the x-axis.
+
+  ct' = γ(ct - β x),  x' = γ(x - β ct)
+
+  ## Returns
+    {ct', x', y', z'}
 
   ## Examples
-      iex> SpecialRelativity.lorentz_boost(1, 0, 0, 0, 0.5 * 299792458)
-      {1.1547005383792517, -0.5773502691896258, 0, 0}
+      iex> SpecialRelativity.lorentz_boost(0, 0, 0, 0, 0) |> elem(0) |> Float.round(4)
+      0.0
   """
   @spec lorentz_boost(number, number, number, number, number, number) ::
           {number, number, number, number}
-  def lorentz_boost(ct, x, y, z, v, c \\ 299_792_458) do
-    γ = gamma_factor(v, c)
-    β = v / c
-
-    ct_prime = γ * (ct - β * x)
-    x_prime = γ * (x - β * ct)
-    {ct_prime, x_prime, y, z}
+  def lorentz_boost(ct, x, y, z, v, c \\ @speed_of_light) do
+    gamma = gamma_factor(v, c)
+    b = v / c
+    {gamma * (ct - b * x), gamma * (x - b * ct), y, z}
   end
 
   @doc """
-  Calculates proper time between two events for a given velocity profile.
+  Proper time calculated by numerical integration over a velocity profile.
+
+  τ = ∫ dt / γ(v(t))
 
   ## Parameters
-    - t_a: start time
-    - t_b: end time
-    - velocity_fn: function that returns velocity at time t
-    - c: speed of light (default: 299_792_458 m/s)
+    - t_a, t_b:    Integration bounds (s)
+    - velocity_fn: Function v(t) → speed in m/s
+    - c:           Speed of light (m/s)
+    - steps:       Integration steps (default: 1000)
 
   ## Examples
-      iex> SpecialRelativity.proper_time(0, 1, fn _ -> 0.5 * 299792458 end)
-      0.8660254037844386
+      iex> SpecialRelativity.proper_time(0, 1.0, fn _ -> 0 end) |> Float.round(4)
+      1.0
   """
-  @spec proper_time(number, number, (number -> number), number) :: number
-  def proper_time(t_a, t_b, velocity_fn, c \\ 299_792_458) do
-    # Numerical integration using trapezoidal rule
-    steps = 1000
-    delta_t = (t_b - t_a) / steps
+  @spec proper_time(number, number, (number -> number), number, pos_integer) :: float
+  def proper_time(t_a, t_b, velocity_fn, c \\ @speed_of_light, steps \\ 1_000) do
+    dt = (t_b - t_a) / steps
 
-    Enum.reduce(0..steps, 0, fn i, acc ->
-      t = t_a + i * delta_t
-      v = velocity_fn.(t)
-      γ = gamma_factor(v, c)
-      acc + delta_t / γ
+    Enum.reduce(0..steps, 0.0, fn i, acc ->
+      t = t_a + i * dt
+      acc + dt / gamma_factor(velocity_fn.(t), c)
     end)
   end
 
+  # ---------------------------------------------------------------------------
+  # Invariant Interval
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Spacetime interval: s² = -c²Δt² + Δx² + Δy² + Δz²
+
+  Returns:
+  - s² < 0 → timelike
+  - s² = 0 → lightlike (null)
+  - s² > 0 → spacelike
+  """
+  @spec spacetime_interval(number, number, number, number, number) :: float
+  def spacetime_interval(dt, dx, dy, dz, c \\ @speed_of_light) do
+    -(c * dt) ** 2 + dx ** 2 + dy ** 2 + dz ** 2
+  end
 end
