@@ -13,7 +13,8 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.GalaxiesTest do
 
     test "maximum flattening is E7" do
       assert hubble_classify(10, 3) == "E7"
-      assert hubble_classify(10, 2) == "E7"  # Even flatter still E7
+      # Even flatter still E7
+      assert hubble_classify(10, 2) == "E7"
     end
   end
 
