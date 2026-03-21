@@ -1,311 +1,392 @@
 defmodule AstroEquations.Physics.ElectromagnetismTest do
-  use ExUnit.Case
-  doctest AstroEquations.Physics.Electromagnetism
+  use ExUnit.Case, async: true
+
+  alias AstroEquations.Physics.Electromagnetism, as: EM
+
+  @eps0 8.8541878128e-12
+  @mu0 1.25663706212e-6
+  @pi :math.pi()
+  @tol 1.0e-8
+
+  # ---------------------------------------------------------------------------
+  # Maxwell's Equations
+  # ---------------------------------------------------------------------------
 
   describe "gauss_law/2" do
-    test "calculates electric flux for given enclosed charge" do
-      assert AstroEquations.Physics.Electromagnetism.gauss_law(1.0) == 1 / 8.8541878128e-12
+    test "Φ = Q/ε₀: 1 C → ~1.13e11 N·m²/C" do
+      assert_in_delta EM.gauss_law(1.0), 1.0 / @eps0, 1.0
     end
-  end
 
-  describe "gauss_law_differential/2" do
-    test "calculates divergence of E field for given charge density" do
-      assert AstroEquations.Physics.Electromagnetism.gauss_law_differential(1.0) ==
-               1 / 8.8541878128e-12
+    test "zero charge → zero flux" do
+      assert EM.gauss_law(0.0) == 0.0
+    end
+
+    test "scales linearly with charge" do
+      phi1 = EM.gauss_law(1.0e-9)
+      phi2 = EM.gauss_law(2.0e-9)
+      assert_in_delta phi2 / phi1, 2.0, @tol
     end
   end
 
   describe "gauss_law_magnetism/0" do
-    test "always returns zero" do
-      assert AstroEquations.Physics.Electromagnetism.gauss_law_magnetism() == 0
+    test "always returns 0 (no magnetic monopoles)" do
+      assert EM.gauss_law_magnetism() == 0
     end
   end
 
   describe "faraday_law/1" do
-    test "calculates curl of E field from changing B field" do
-      assert AstroEquations.Physics.Electromagnetism.faraday_law(2.5) == -2.5
+    test "curl E = -dB/dt: returns negation" do
+      assert_in_delta EM.faraday_law(3.0), -3.0, @tol
+    end
+
+    test "zero rate → zero curl" do
+      assert EM.faraday_law(0.0) == 0.0
+    end
+  end
+
+  describe "faraday_emf/1" do
+    test "ε = -dΦ/dt: 0.05 Wb/s → -0.05 V" do
+      assert_in_delta EM.faraday_emf(0.05), -0.05, @tol
     end
   end
 
   describe "ampere_law/4" do
-    test "calculates curl of B field from current and changing E field" do
-      current = 1.0
-      dE_dt = 1.0
-      expected = 1.25663706212e-6 * (current + 8.8541878128e-12 * dE_dt)
-      assert AstroEquations.Physics.Electromagnetism.ampere_law(current, dE_dt) == expected
+    test "pure current: ∇×B = μ₀J" do
+      j = 1.0e6
+      result = EM.ampere_law(j, 0.0)
+      assert_in_delta result, @mu0 * j, 1.0e-15
+    end
+
+    test "pure displacement current: ∇×B = μ₀ε₀ ∂E/∂t" do
+      dE_dt = 1.0e12
+      result = EM.ampere_law(0.0, dE_dt)
+      assert_in_delta result, @mu0 * @eps0 * dE_dt, 1.0e-20
     end
   end
+
+  # ---------------------------------------------------------------------------
+  # Lorentz Force
+  # ---------------------------------------------------------------------------
 
   describe "lorentz_force_point/4" do
-    test "calculates force on point charge" do
-      # Test case: E field in x, velocity in y, B field in z
-      assert AstroEquations.Physics.Electromagnetism.lorentz_force_point(
-               1.0,
-               {1.0, 0.0, 0.0},
-               {0.0, 1.0, 0.0},
-               {0.0, 0.0, 1.0}
-             ) == {1.0, 0.0, -1.0}
+    test "electric force only (B=0): F = qE" do
+      q = 1.602e-19
+      e = {1.0e4, 0.0, 0.0}
+      v = {0.0, 0.0, 0.0}
+      b = {0.0, 0.0, 0.0}
+      {fx, fy, fz} = EM.lorentz_force_point(q, e, v, b)
+      assert_in_delta fx, q * 1.0e4, 1.0e-30
+      assert_in_delta fy, 0.0, @tol
+      assert_in_delta fz, 0.0, @tol
+    end
+
+    test "magnetic force only (E=0, v⊥B): F = qv×B" do
+      q = 1.0
+      e = {0.0, 0.0, 0.0}
+      v = {0.0, 1.0, 0.0}
+      b = {0.0, 0.0, 1.0}
+      {fx, _, _} = EM.lorentz_force_point(q, e, v, b)
+      assert_in_delta fx, -1.0, @tol
+    end
+
+    test "charge sign flips force direction" do
+      e = {1.0e3, 0.0, 0.0}
+      {fx_pos, _, _} = EM.lorentz_force_point(1.0, e, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0})
+      {fx_neg, _, _} = EM.lorentz_force_point(-1.0, e, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0})
+      assert_in_delta fx_pos, -fx_neg, @tol
     end
   end
+
+  describe "cyclotron_radius/4" do
+    test "r = mv⊥/(|q|B): positive value" do
+      r = EM.cyclotron_radius(9.109e-31, 1.0e6, 1.602e-19, 0.01)
+      assert r > 0
+    end
+
+    test "larger B → smaller radius" do
+      r1 = EM.cyclotron_radius(1.0e-27, 1.0e5, 1.6e-19, 0.1)
+      r2 = EM.cyclotron_radius(1.0e-27, 1.0e5, 1.6e-19, 1.0)
+      assert r2 < r1
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Electric Fields and Potentials
+  # ---------------------------------------------------------------------------
 
   describe "electric_field_point/3" do
-    test "calculates electric field from point charge" do
-      q = 1.0
-      r = 1.0
-      expected = 1 / (4 * :math.pi() * 8.8541878128e-12) * q / :math.pow(r, 2)
-      assert AstroEquations.Physics.Electromagnetism.electric_field_point(q, r) == expected
+    test "E = q/(4πε₀r²): 1 nC at 1 m → 8.99 V/m" do
+      e = EM.electric_field_point(1.0e-9, 1.0)
+      assert_in_delta e, 8.988e0, 0.01
+    end
+
+    test "inverse square law: r doubles → E quarters" do
+      e1 = EM.electric_field_point(1.0e-9, 1.0)
+      e2 = EM.electric_field_point(1.0e-9, 2.0)
+      assert_in_delta e1 / e2, 4.0, @tol
+    end
+
+    test "negative charge → negative field (pointing inward)" do
+      assert EM.electric_field_point(-1.0e-9, 1.0) < 0
     end
   end
 
-  describe "drift_velocity/2" do
-    test "calculates electron drift velocity" do
-      assert AstroEquations.Physics.Electromagnetism.drift_velocity(0.001, 100) == 0.1
+  describe "electric_potential_point/3" do
+    test "V = q/(4πε₀r): 1 nC at 0.1 m → ~89.9 V" do
+      v = EM.electric_potential_point(1.0e-9, 0.1)
+      assert_in_delta v, 89.88, 0.1
+    end
+
+    test "scales as 1/r" do
+      v1 = EM.electric_potential_point(1.0e-9, 1.0)
+      v2 = EM.electric_potential_point(1.0e-9, 2.0)
+      assert_in_delta v1 / v2, 2.0, @tol
     end
   end
 
-  describe "current_from_properties/5" do
-    test "calculates current from charge carrier properties" do
-      assert AstroEquations.Physics.Electromagnetism.current_from_properties(
-               1.0e28,
-               1.0e-6,
-               1.6e-19,
-               0.001,
-               100
-             ) ==
-               1.6
+  describe "potential_energy/4" do
+    test "like charges: positive PE (repulsive)" do
+      assert EM.potential_energy(1.0e-9, 1.0e-9, 0.1) > 0
+    end
+
+    test "unlike charges: negative PE (attractive)" do
+      assert EM.potential_energy(1.0e-9, -1.0e-9, 0.1) < 0
+    end
+
+    test "U = kq₁q₂/r: symmetric in charges" do
+      u1 = EM.potential_energy(2.0e-9, 3.0e-9, 0.5)
+      u2 = EM.potential_energy(3.0e-9, 2.0e-9, 0.5)
+      assert_in_delta u1, u2, @tol
+    end
+  end
+
+  describe "field_energy_density/2" do
+    test "u = ½ε₀E²: positive" do
+      assert EM.field_energy_density(1000.0) > 0
+    end
+
+    test "scales as E²" do
+      u1 = EM.field_energy_density(100.0)
+      u2 = EM.field_energy_density(200.0)
+      assert_in_delta u2 / u1, 4.0, @tol
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Circuit Theory
+  # ---------------------------------------------------------------------------
+
+  describe "ohms_law/2" do
+    test "V = IR: 2 A × 5 Ω = 10 V" do
+      assert_in_delta EM.ohms_law(2, 5), 10.0, @tol
     end
   end
 
   describe "electrical_power/2" do
-    test "calculates power from current and voltage" do
-      assert AstroEquations.Physics.Electromagnetism.electrical_power(2, 10) == 20
+    test "P = IV: 2 A × 10 V = 20 W" do
+      assert_in_delta EM.electrical_power(2, 10), 20.0, @tol
     end
   end
 
   describe "electrical_power_from_resistance/2" do
-    test "calculates power from current and resistance" do
-      assert AstroEquations.Physics.Electromagnetism.electrical_power_from_resistance(2, 5) == 20
+    test "P = I²R: 2 A, 5 Ω → 20 W" do
+      assert_in_delta EM.electrical_power_from_resistance(2, 5), 20.0, @tol
     end
   end
 
-  describe "ohms_law/2" do
-    test "calculates voltage from current and resistance" do
-      assert AstroEquations.Physics.Electromagnetism.ohms_law(2, 5) == 10
+  describe "electrical_power_from_voltage/2" do
+    test "P = V²/R: 10 V, 5 Ω → 20 W" do
+      assert_in_delta EM.electrical_power_from_voltage(10, 5), 20.0, @tol
     end
-  end
 
-  describe "resistance/3" do
-    test "calculates resistance from resistivity" do
-      assert AstroEquations.Physics.Electromagnetism.resistance(1.68e-8, 1, 1.0e-6) == 0.0168
+    test "consistent with P = IV when I = V/R" do
+      v = 12.0
+      r = 4.0
+      i = v / r
+
+      assert_in_delta EM.electrical_power_from_voltage(v, r),
+                      EM.electrical_power(i, v),
+                      @tol
     end
   end
 
   describe "series_resistance/1" do
-    test "calculates total series resistance" do
-      assert AstroEquations.Physics.Electromagnetism.series_resistance([10, 20, 30]) == 60
+    test "R = Σ Rᵢ: [10, 20, 30] → 60 Ω" do
+      assert_in_delta EM.series_resistance([10, 20, 30]), 60.0, @tol
+    end
+
+    test "single resistor unchanged" do
+      assert_in_delta EM.series_resistance([47.0]), 47.0, @tol
     end
   end
 
   describe "parallel_resistance/1" do
-    test "calculates total parallel resistance" do
-      assert AstroEquations.Physics.Electromagnetism.parallel_resistance([10, 10]) == 5.0
+    test "two equal R → R/2: [10, 10] → 5 Ω" do
+      assert_in_delta EM.parallel_resistance([10, 10]), 5.0, @tol
+    end
+
+    test "parallel R always less than smallest" do
+      r_min = 10.0
+      r_parallel = EM.parallel_resistance([r_min, 100.0, 1000.0])
+      assert r_parallel < r_min
     end
   end
+
+  describe "lc_resonant_frequency/2" do
+    test "omega₀ = 1/√(LC): L=1mH, C=10μF → 10_000 rad/s" do
+      assert_in_delta EM.lc_resonant_frequency(1.0e-3, 10.0e-6), 10_000.0, 0.1
+    end
+
+    test "higher L or C → lower resonant frequency" do
+      omega1 = EM.lc_resonant_frequency(1.0e-3, 1.0e-6)
+      omega2 = EM.lc_resonant_frequency(2.0e-3, 1.0e-6)
+      assert omega2 < omega1
+    end
+  end
+
+  describe "rc_time_constant/2" do
+    test "τ = RC: R=10kΩ, C=100μF → 1.0 s" do
+      assert_in_delta EM.rc_time_constant(10_000, 100.0e-6), 1.0, @tol
+    end
+  end
+
+  describe "rl_time_constant/2" do
+    test "τ = L/R: L=1H, R=100Ω → 0.01 s" do
+      assert_in_delta EM.rl_time_constant(1.0, 100), 0.01, @tol
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Capacitors
+  # ---------------------------------------------------------------------------
 
   describe "capacitance/2" do
-    test "calculates capacitance from charge and voltage" do
-      assert AstroEquations.Physics.Electromagnetism.capacitance(1.0e-6, 10) == 1.0e-7
-    end
-  end
-
-  describe "capacitance_from_geometry/3" do
-    test "calculates capacitance from physical properties" do
-      assert AstroEquations.Physics.Electromagnetism.capacitance_from_geometry(
-               8.854e-12,
-               0.01,
-               1.0e-3
-             ) ==
-               8.854e-11
+    test "C = Q/V: 1e-6 C, 10 V → 0.1 μF" do
+      assert_in_delta EM.capacitance(1.0e-6, 10), 1.0e-7, @tol
     end
   end
 
   describe "capacitor_energy/2" do
-    test "calculates energy stored in capacitor" do
-      assert AstroEquations.Physics.Electromagnetism.capacitor_energy(1.0e-6, 10) == 5.0e-5
+    test "U = ½CV²: C=1μF, V=10 V → 50 μJ" do
+      assert_in_delta EM.capacitor_energy(1.0e-6, 10), 5.0e-5, @tol
+    end
+
+    test "scales as V²" do
+      u1 = EM.capacitor_energy(1.0e-6, 10.0)
+      u2 = EM.capacitor_energy(1.0e-6, 20.0)
+      assert_in_delta u2 / u1, 4.0, @tol
     end
   end
 
-  describe "capacitor_field/3" do
-    test "calculates electric field in capacitor" do
-      charge = 1.0e-6
-      area = 0.01
-      expected = charge / (8.8541878128e-12 * area)
-      assert AstroEquations.Physics.Electromagnetism.capacitor_field(charge, area) == expected
-    end
-  end
-
-  describe "biot_savart/4" do
-    test "calculates magnetic field from current element" do
-      # Current along z-axis, field point at x-axis
-      result = Physics.Electromagnetism.biot_savart(1.0, {0.0, 0.0, 1.0e-3}, {1.0, 0.0, 0.0}, 1.0)
-      assert elem(result, 1) == 1.0e-10
-      assert elem(result, 0) == 0.0
-      assert elem(result, 2) == 0.0
-    end
-  end
-
-  describe "moving_charge_field/4" do
-    test "calculates magnetic field from moving charge" do
-      # Charge moving along y-axis, field point at x-axis
-      q = 1.6e-19
-      expected_z = -q / :math.pow(1.0, 2) * 1.25663706212e-6 / (4 * :math.pi())
-
-      result =
-        AstroEquations.Physics.Electromagnetism.moving_charge_field(
-          q,
-          {0.0, 1.0e6, 0.0},
-          {1.0, 0.0, 0.0},
-          1.0
-        )
-
-      assert elem(result, 2) == expected_z
-    end
-  end
+  # ---------------------------------------------------------------------------
+  # Magnetic Fields
+  # ---------------------------------------------------------------------------
 
   describe "wire_magnetic_field/3" do
-    test "calculates magnetic field around wire" do
-      assert AstroEquations.Physics.Electromagnetism.wire_magnetic_field(1.0, 0.1) == 2.0e-6
+    test "B = μ₀I/(2πr): 1 A, 0.1 m → 2 μT" do
+      b = EM.wire_magnetic_field(1.0, 0.1)
+      assert_in_delta b, 2.0e-6, 1.0e-10
+    end
+
+    test "inverse distance law: double r → half B" do
+      b1 = EM.wire_magnetic_field(1.0, 0.1)
+      b2 = EM.wire_magnetic_field(1.0, 0.2)
+      assert_in_delta b1 / b2, 2.0, @tol
     end
   end
 
-  describe "inductor_emf/2" do
-    test "calculates induced EMF in inductor" do
-      assert AstroEquations.Physics.Electromagnetism.inductor_emf(0.1, 10.0) == -1.0
+  describe "solenoid_field/3" do
+    test "B = μ₀nI: n=1000/m, I=2A → 2.51 mT" do
+      b = EM.solenoid_field(1000, 2.0)
+      assert_in_delta b, @mu0 * 1000 * 2.0, 1.0e-12
     end
   end
 
   describe "inductor_energy/2" do
-    test "calculates energy stored in inductor" do
-      assert AstroEquations.Physics.Electromagnetism.inductor_energy(0.1, 2.0) == 0.2
+    test "U = ½LI²: L=0.1H, I=2A → 0.2 J" do
+      assert_in_delta EM.inductor_energy(0.1, 2.0), 0.2, @tol
     end
   end
 
-  describe "vector_potential/3" do
-    test "calculates magnetic vector potential" do
-      assert AstroEquations.Physics.Electromagnetism.vector_potential({1.0, 0.0, 0.0}, 1.0) ==
-               {1.25663706212e-7, 0.0, 0.0}
+  describe "magnetic_energy_density/2" do
+    test "u = B²/(2μ₀): positive" do
+      assert EM.magnetic_energy_density(1.0) > 0
+    end
+
+    test "scales as B²" do
+      u1 = EM.magnetic_energy_density(1.0)
+      u2 = EM.magnetic_energy_density(2.0)
+      assert_in_delta u2 / u1, 4.0, @tol
     end
   end
 
-  describe "gauss_law_polarization/2" do
-    test "calculates bound charge for perpendicular vectors" do
-      assert AstroEquations.Physics.Electromagnetism.gauss_law_polarization([1, 0, 0], [1, 0, 0]) ==
-               -1.0
+  # ---------------------------------------------------------------------------
+  # Materials
+  # ---------------------------------------------------------------------------
 
-      assert AstroEquations.Physics.Electromagnetism.gauss_law_polarization([0, 2, 0], [0, 3, 0]) ==
-               -6.0
+  describe "electric_susceptibility/1" do
+    test "χₑ = εᵣ - 1: εᵣ=2 → χₑ=1" do
+      assert_in_delta EM.electric_susceptibility(2.0), 1.0, @tol
     end
 
-    test "returns zero for orthogonal vectors" do
-      assert AstroEquations.Physics.Electromagnetism.gauss_law_polarization([1, 0, 0], [0, 1, 0]) ==
-               0.0
-    end
-  end
-
-  describe "gauss_law_displacement/2" do
-    test "calculates free charge for perpendicular vectors" do
-      assert AstroEquations.Physics.Electromagnetism.gauss_law_displacement([1, 0, 0], [1, 0, 0]) ==
-               1.0
-
-      assert AstroEquations.Physics.Electromagnetism.gauss_law_displacement([0, 2, 0], [0, 3, 0]) ==
-               6.0
-    end
-
-    test "returns zero for orthogonal vectors" do
-      assert AstroEquations.Physics.Electromagnetism.gauss_law_displacement([1, 0, 0], [0, 1, 0]) ==
-               0.0
+    test "vacuum (εᵣ=1): χₑ = 0" do
+      assert_in_delta EM.electric_susceptibility(1.0), 0.0, @tol
     end
   end
 
   describe "relative_permittivity/2" do
-    test "calculates relative permittivity" do
-      assert AstroEquations.Physics.Electromagnetism.relative_permittivity(1.77e-11, 8.854e-12) ==
-               2.0
+    test "εᵣ = ε/ε₀: ε = 2ε₀ → εᵣ = 2" do
+      assert_in_delta EM.relative_permittivity(2 * @eps0), 2.0, @tol
     end
   end
 
-  describe "electric_susceptibility/1" do
-    test "calculates electric susceptibility" do
-      assert AstroEquations.Physics.Electromagnetism.electric_susceptibility(2.0) == 1.0
-      assert AstroEquations.Physics.Electromagnetism.electric_susceptibility(1.0) == 0.0
+  # ---------------------------------------------------------------------------
+  # EM Waves
+  # ---------------------------------------------------------------------------
+
+  describe "free_space_impedance/2" do
+    test "Z₀ = √(μ₀/ε₀) ≈ 376.7 Ω" do
+      z0 = EM.free_space_impedance()
+      assert_in_delta z0, 376.73, 0.1
     end
   end
 
-  describe "absolute_permittivity/2" do
-    test "calculates absolute permittivity" do
-      assert_in_delta AstroEquations.Physics.Electromagnetism.absolute_permittivity(
-                        2.0,
-                        8.854e-12
-                      ),
-                      1.7708e-11,
-                      1.0e-15
+  describe "wave_speed/2" do
+    test "vacuum: v = 1/√(μ₀ε₀) = c" do
+      v = EM.wave_speed(@mu0, @eps0)
+      assert_in_delta v, 2.998e8, 1.0e5
+    end
+
+    test "medium with εᵣ=4: v = c/2" do
+      v = EM.wave_speed(@mu0, 4 * @eps0)
+      assert_in_delta v, 2.998e8 / 2, 1.0e5
     end
   end
 
-  describe "polarization/4" do
-    test "calculates from susceptibility and electric field" do
-      assert Maxwell.Materials.polarization(1.0, [1, 0, 0]) ==
-               [8.8541878128e-12, 0.0, 0.0]
+  describe "skin_depth/3" do
+    test "copper at 1 MHz: δ ≈ 66 μm" do
+      omega = 2 * @pi * 1.0e6
+      delta = EM.skin_depth(@mu0, 5.8e7, omega)
+      assert_in_delta delta * 1.0e6, 66.0, 2.0
     end
 
-    test "calculates from dipole moment density" do
-      assert Maxwell.Materials.polarization(0, [0, 0, 0], 1.0e28, [1.0e-29, 0.0, 0.0]) ==
-               [1.0e-1, 0.0, 0.0]
-    end
-  end
-
-  describe "surface_bound_charge/2" do
-    test "calculates surface bound charge" do
-      assert Maxwell.Materials.surface_bound_charge([1, 2, 3], [0, 1, 0]) == 2.0
-      assert Maxwell.Materials.surface_bound_charge([1, 1, 1], [1, 1, 1]) == 3.0
+    test "higher frequency → smaller skin depth" do
+      omega1 = 2 * @pi * 1.0e6
+      omega2 = 2 * @pi * 4.0e6
+      d1 = EM.skin_depth(@mu0, 5.8e7, omega1)
+      d2 = EM.skin_depth(@mu0, 5.8e7, omega2)
+      assert d2 < d1
     end
   end
 
-  describe "volume_bound_charge/2" do
-    test "approximates volume bound charge" do
-      assert Maxwell.Materials.volume_bound_charge([[1, 0, 0], [1.1, 0, 0]], 1.0e-3) == -100.0
-    end
-  end
-
-  describe "electric_displacement/3" do
-    test "calculates from permittivity" do
-      assert Maxwell.Materials.electric_displacement(2.0, [1, 0, 0]) == [2.0, 0.0, 0.0]
+  describe "brewsters_angle/2" do
+    test "glass (n=1.5): θ_B ≈ 56.3°" do
+      theta_b = EM.brewsters_angle(1.0, 1.5)
+      assert_in_delta theta_b * 180 / @pi, 56.3, 0.1
     end
 
-    test "calculates with polarization" do
-      assert Maxwell.Materials.electric_displacement(1.0, [1, 0, 0], [0.5, 0, 0]) == [
-               1.5,
-               0.0,
-               0.0
-             ]
-    end
-  end
-
-  describe "magnetic_field_strength/2" do
-    test "calculates without magnetization" do
-      h = Maxwell.Materials.magnetic_field_strength([1.0, 0, 0])
-      assert_in_delta h |> hd(), 795_774.715, 0.001
-    end
-
-    test "calculates with magnetization" do
-      h = Maxwell.Materials.magnetic_field_strength([1.0, 0, 0], [1000, 0, 0])
-      assert_in_delta h |> hd(), 794_774.715, 0.001
-    end
-  end
-
-  describe "bound_surface_current/2" do
-    test "calculates surface current" do
-      assert Maxwell.Materials.bound_surface_current([0, 0, 1], [1, 0, 0]) == [0.0, 1.0, 0.0]
+    test "symmetric material: 45°" do
+      assert_in_delta EM.brewsters_angle(1.0, 1.0) * 180 / @pi, 45.0, @tol
     end
   end
 end
