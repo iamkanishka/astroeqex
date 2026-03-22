@@ -68,7 +68,7 @@ defmodule AstroEquations.MixProject do
   defp package do
     [
       name: "astroequations",
-      licenses: ["MIT"],
+      licenses: ["Apache-2.0"],
       links: %{
         "GitHub" => @source_url,
         "Changelog" => "#{@source_url}/blob/master/CHANGELOG.md"
