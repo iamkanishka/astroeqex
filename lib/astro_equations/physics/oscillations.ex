@@ -15,6 +15,26 @@ defmodule AstroEquations.Physics.Oscillations do
   - Coupled oscillators (beat frequency)
   - Springs in series and parallel
   """
+  use AstroEquations.Guards
+
+  # ---------------------------------------------------------------------------
+  # Types
+  # ---------------------------------------------------------------------------
+
+  @typedoc "Spring constant in N/m. Must be positive."
+  @type spring_constant :: float()
+
+  @typedoc "Angular frequency in rad/s. Must be positive."
+  @type angular_frequency :: float()
+
+  @typedoc "Oscillation amplitude in metres. Non-negative."
+  @type amplitude :: float()
+
+  @typedoc "Damping ratio ζ. Non-negative; ζ < 1 is underdamped."
+  @type damping_ratio :: float()
+
+  @typedoc "Quality factor Q. Must be positive."
+  @type q_factor :: float()
 
   # ---------------------------------------------------------------------------
   # Spring Force (Hooke's Law)
@@ -27,8 +47,9 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.force(10, 0.5)
       -5.0
   """
-  @spec force(number, number) :: float
-  def force(k_s, x), do: -k_s * x * 1.0
+
+  @spec force(number, number) :: number()
+  def force(k_s, x) when is_positive(k_s), do: -k_s * x
 
   @doc """
   Elastic potential energy: U = ½ k x²
@@ -37,8 +58,9 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.potential_energy(10, 0.5)
       1.25
   """
+
   @spec potential_energy(number, number) :: float
-  def potential_energy(k_s, x), do: 0.5 * k_s * :math.pow(x, 2)
+  def potential_energy(k_s, x) when is_positive(k_s), do: 0.5 * k_s * :math.pow(x, 2)
 
   @doc """
   Effective spring constant for two springs in series: 1/k_eff = 1/k₁ + 1/k₂
@@ -47,6 +69,7 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.springs_series(10.0, 10.0) |> Float.round(4)
       5.0
   """
+
   @spec springs_series(number, number) :: float
   def springs_series(k1, k2), do: k1 * k2 / (k1 + k2)
 
@@ -57,7 +80,8 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.springs_parallel(10.0, 5.0) |> Float.round(4)
       15.0
   """
-  @spec springs_parallel(number, number) :: float
+
+  @spec springs_parallel(number, number) :: number()
   def springs_parallel(k1, k2), do: k1 + k2
 
   # ---------------------------------------------------------------------------
@@ -71,8 +95,9 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.angular_frequency(10, 2.5)
       2.0
   """
+
   @spec angular_frequency(number, number) :: float
-  def angular_frequency(k_s, m), do: :math.sqrt(k_s / m)
+  def angular_frequency(k_s, m) when is_positive(k_s) and is_positive(m), do: :math.sqrt(k_s / m)
 
   @doc """
   Angular frequency of a simple pendulum (small angle): omega = √(g / L)
@@ -81,8 +106,10 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.pendulum_angular_frequency(1.0) |> Float.round(4)
       3.1321
   """
+
   @spec pendulum_angular_frequency(number, number) :: float
-  def pendulum_angular_frequency(length, g \\ 9.81), do: :math.sqrt(g / length)
+  def pendulum_angular_frequency(length, g \\ 9.81) when is_positive(length),
+    do: :math.sqrt(g / length)
 
   @doc """
   Angular frequency of a physical (compound) pendulum: omega = √(m g d / I)
@@ -91,28 +118,36 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.physical_pendulum_frequency(1, 0.5, 0.5) |> Float.round(4)
       3.1321
   """
+
   @spec physical_pendulum_frequency(number, number, number, number) :: float
-  def physical_pendulum_frequency(mass, d, moment_of_inertia, g \\ 9.81) do
+  def physical_pendulum_frequency(mass, d, moment_of_inertia, g \\ 9.81) when is_positive(mass) do
     :math.sqrt(mass * g * d / moment_of_inertia)
   end
 
   @doc "Oscillation period from angular frequency: T = 2π/omega."
+
   @spec period_from_omega(number) :: float
   def period_from_omega(omega), do: 2 * :math.pi() / omega
 
   @doc "Period of a spring-mass system: T = 2π√(m/k)."
+
   @spec spring_period(number, number) :: float
-  def spring_period(mass, k), do: 2 * :math.pi() * :math.sqrt(mass / k)
+  def spring_period(mass, k) when is_positive(mass) and is_positive(k),
+    do: 2 * :math.pi() * :math.sqrt(mass / k)
 
   @doc "Period of a simple pendulum (small angle): T = 2π√(L/g)."
+
   @spec pendulum_period(number, number) :: float
-  def pendulum_period(length, g \\ 9.81), do: 2 * :math.pi() * :math.sqrt(length / g)
+  def pendulum_period(length, g \\ 9.81) when is_positive(length) and is_positive(g),
+    do: 2 * :math.pi() * :math.sqrt(length / g)
 
   @doc "Ordinary frequency from period: f = 1/T."
+
   @spec frequency_from_period(number) :: float
   def frequency_from_period(period), do: 1.0 / period
 
   @doc "Angular frequency from ordinary frequency: omega = 2πf."
+
   @spec omega_from_frequency(number) :: float
   def omega_from_frequency(f), do: 2 * :math.pi() * f
 
@@ -121,24 +156,28 @@ defmodule AstroEquations.Physics.Oscillations do
   # ---------------------------------------------------------------------------
 
   @doc "Simple harmonic displacement: x(t) = A cos(omegat + φ)."
+
   @spec shm_displacement(number, number, number, number) :: float
   def shm_displacement(amplitude, omega, t, phi \\ 0.0) do
     amplitude * :math.cos(omega * t + phi)
   end
 
   @doc "Simple harmonic velocity: v(t) = −Aomega sin(omegat + φ)."
+
   @spec shm_velocity(number, number, number, number) :: float
   def shm_velocity(amplitude, omega, t, phi \\ 0.0) do
     -amplitude * omega * :math.sin(omega * t + phi)
   end
 
   @doc "Simple harmonic acceleration: a(t) = -Aomega² cos(omegat + φ)."
+
   @spec shm_acceleration(number, number, number, number) :: float
   def shm_acceleration(amplitude, omega, t, phi \\ 0.0) do
     -amplitude * :math.pow(omega, 2) * :math.cos(omega * t + phi)
   end
 
   @doc "Instantaneous SHM speed from position: v = omega√(A² − x²)."
+
   @spec shm_velocity_from_position(number, number, number) :: float
   def shm_velocity_from_position(amplitude, omega, x) do
     omega * :math.sqrt(max(:math.pow(amplitude, 2) - :math.pow(x, 2), 0.0))
@@ -149,12 +188,15 @@ defmodule AstroEquations.Physics.Oscillations do
   # ---------------------------------------------------------------------------
 
   @doc "Total mechanical energy in SHM (constant): E = ½kA²."
+
   @spec shm_total_energy(number, number) :: float
-  def shm_total_energy(k, amplitude), do: 0.5 * k * :math.pow(amplitude, 2)
+  def shm_total_energy(k, amplitude) when is_positive(k) and is_non_negative(amplitude),
+    do: 0.5 * k * :math.pow(amplitude, 2)
 
   @doc "Instantaneous kinetic energy in SHM: KE = ½momega²(A² − x²)."
+
   @spec shm_kinetic_energy(number, number, number, number) :: float
-  def shm_kinetic_energy(mass, omega, amplitude, x) do
+  def shm_kinetic_energy(mass, omega, amplitude, x) when is_positive(mass) do
     0.5 * mass * :math.pow(omega, 2) * (:math.pow(amplitude, 2) - :math.pow(x, 2))
   end
 
@@ -172,8 +214,9 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.shm_energy_at_time(10, 0.1, 0, 1.0, 5.0) |> Float.round(4)
       0.05
   """
+
   @spec shm_energy_at_time(number, number, number, number, number) :: float
-  def shm_energy_at_time(k, amplitude, b, mass, t) do
+  def shm_energy_at_time(k, amplitude, b, mass, t) when is_positive(mass) do
     0.5 * k * :math.pow(amplitude, 2) * :math.exp(-b * t / mass)
   end
 
@@ -188,12 +231,14 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.damping_ratio(2, 10, 1.0) |> Float.round(4)
       0.3162
   """
+
   @spec damping_ratio(number, number, number) :: float
-  def damping_ratio(b, k, mass), do: b / (2 * :math.sqrt(k * mass))
+  def damping_ratio(b, k, mass) when is_positive(mass), do: b / (2 * :math.sqrt(k * mass))
 
   @doc """
   Damped natural frequency: omega_d = omega₀ √(1 - ζ²)  (valid for ζ < 1).
   """
+
   @spec damped_frequency(number, number) :: float
   def damped_frequency(omega_0, zeta) when zeta < 1.0 do
     omega_0 * :math.sqrt(1 - zeta * zeta)
@@ -206,6 +251,7 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.underdamped_displacement(0.1, 0, 10, 10, 0) |> Float.round(4)
       0.1
   """
+
   @spec underdamped_displacement(number, number, number, number, number, number) :: float
   def underdamped_displacement(amplitude, zeta, omega_0, omega_d, t, phi \\ 0.0) do
     amplitude *
@@ -220,8 +266,11 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.quality_factor(10, 1.0, 0.5) |> Float.round(4)
       20.0
   """
+
   @spec quality_factor(number, number, number) :: float
-  def quality_factor(omega_0, mass, b), do: omega_0 * mass / b
+  def quality_factor(omega_0, mass, b)
+      when is_positive(omega_0) and is_positive(mass) and is_positive(b),
+      do: omega_0 * mass / b
 
   @doc """
   Logarithmic decrement: δ = π b / (m omega_d) = 2π ζ / √(1 - ζ²)
@@ -238,6 +287,7 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.log_decrement(0.1, 10.0, 9.95) |> Float.round(4)
       0.6315
   """
+
   @spec log_decrement(number, number, number) :: float
   def log_decrement(zeta, omega_0, omega_d) do
     :math.pi() * zeta * omega_0 / omega_d
@@ -257,6 +307,7 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.settling_time(0.1, 10.0) |> Float.round(4)
       4.0
   """
+
   @spec settling_time(number, number) :: float
   def settling_time(zeta, omega_0), do: 4.0 / (zeta * omega_0)
 
@@ -272,8 +323,9 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.resonance_amplitude(1, 1, 10, 0, 0.1) > 0
       true
   """
+
   @spec resonance_amplitude(number, number, number, number, number) :: float
-  def resonance_amplitude(f0, mass, omega_0, omega, b) do
+  def resonance_amplitude(f0, mass, omega_0, omega, b) when is_positive(f0) do
     f0 / mass /
       :math.sqrt(
         :math.pow(omega_0 * omega_0 - omega * omega, 2) +
@@ -289,8 +341,9 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.resonant_frequency(10, 0, 1) |> Float.round(4)
       10.0
   """
+
   @spec resonant_frequency(number, number, number) :: float
-  def resonant_frequency(omega_0, b, mass) do
+  def resonant_frequency(omega_0, b, mass) when is_positive(mass) do
     arg = omega_0 * omega_0 - b * b / (2 * mass * mass)
     if arg > 0, do: :math.sqrt(arg), else: 0.0
   end
@@ -306,6 +359,7 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.half_power_bandwidth(10.0, 20.0) |> Float.round(4)
       0.5
   """
+
   @spec half_power_bandwidth(number, number) :: float
   def half_power_bandwidth(omega_0, q), do: omega_0 / q
 
@@ -320,8 +374,10 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.lc_angular_frequency(1.0e-3, 10.0e-6) |> Float.round(0)
       10000.0
   """
+
   @spec lc_angular_frequency(number, number) :: float
-  def lc_angular_frequency(inductance, capacitance) do
+  def lc_angular_frequency(inductance, capacitance)
+      when is_positive(inductance) and is_positive(capacitance) do
     1.0 / :math.sqrt(inductance * capacitance)
   end
 
@@ -338,9 +394,10 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.lc_energy(1.0e-3, 2.0) |> Float.round(6)
       0.002
   """
+
   @spec lc_energy(number, number) :: float
   def lc_energy(inductance, peak_current) do
-    0.5 * inductance * peak_current ** 2
+    0.5 * inductance * peak_current * peak_current
   end
 
   # ---------------------------------------------------------------------------
@@ -354,6 +411,8 @@ defmodule AstroEquations.Physics.Oscillations do
       iex> Oscillations.beat_frequency(440, 444)
       4.0
   """
-  @spec beat_frequency(number, number) :: float
-  def beat_frequency(f1, f2), do: abs(f1 - f2) * 1.0
+
+  @spec beat_frequency(number, number) :: number()
+
+  def beat_frequency(f1, f2), do: abs(f1 - f2)
 end
