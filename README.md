@@ -172,4 +172,4 @@ mix ci
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Apache-2.0
