@@ -16,13 +16,30 @@ defmodule AstroEquations.Physics.GeneralRelativity do
 
   Natural units c = G = 1 are used unless physical constants are explicit parameters.
   """
+  use AstroEquations.Guards
 
-  @gravitational_constant 6.67430e-11
-  @speed_of_light 2.99792458e8
+  # ---------------------------------------------------------------------------
+  # Types
+  # ---------------------------------------------------------------------------
+
+  @typedoc "Mass in kilograms (kg). Must be positive."
+  @type mass :: float()
+
+  @typedoc "Radial coordinate in metres (m). Must be positive."
+  @type radius :: float()
+
+  @typedoc "Dimensionless density parameter Ω."
+  @type density_parameter :: float()
+
+  @typedoc "Hubble parameter in s⁻¹."
+  @type hubble_param :: float()
+
+  @gravitational_constant 6.674_30e-11
+  @speed_of_light 2.997_924_58e8
   # Reduced Planck constant (J·s)
-  @hbar 1.054571817e-34
+  @hbar 1.054_571_817e-34
   # Boltzmann constant (J/K)
-  @boltzmann 1.380649e-23
+  @boltzmann 1.380_649e-23
 
   # ---------------------------------------------------------------------------
   # Metrics
@@ -35,6 +52,7 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.minkowski_metric()
       [[-1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]
   """
+
   @spec minkowski_metric() :: [[integer]]
   def minkowski_metric do
     [[-1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
@@ -47,7 +65,8 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.minkowski_interval(1, 0, 0, 0)
       -1
   """
-  @spec minkowski_interval(number, number, number, number, number) :: float
+
+  @spec minkowski_interval(number, number, number, number, number) :: number()
   def minkowski_interval(dt, dx, dy, dz, c \\ 1) do
     -(c * c * dt * dt) + dx * dx + dy * dy + dz * dz
   end
@@ -65,6 +84,7 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.schwarzschild_metric(1, 3, :math.pi()/2) |> length()
       4
   """
+
   @spec schwarzschild_metric(number, number, number, number, number) :: [[number]]
   def schwarzschild_metric(m, r, theta, c \\ 1, g \\ 1) do
     rs = 2 * g * m / (c * c)
@@ -74,7 +94,7 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       [-factor, 0, 0, 0],
       [0, 1 / factor, 0, 0],
       [0, 0, r * r, 0],
-      [0, 0, 0, r * r * :math.sin(theta) ** 2]
+      [0, 0, 0, r * r * :math.sin(:math.pow(theta, 2))]
     ]
   end
 
@@ -85,6 +105,7 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.schwarzschild_interval(1, 3, :math.pi()/2, 1, 0, 0, 0) |> Float.round(4)
       -0.3333
   """
+
   @spec schwarzschild_interval(
           number,
           number,
@@ -103,7 +124,7 @@ defmodule AstroEquations.Physics.GeneralRelativity do
     -factor * c * c * dt * dt +
       1 / factor * dr * dr +
       r * r * dtheta * dtheta +
-      r * r * :math.sin(theta) ** 2 * dphi * dphi
+      r * r * :math.sin(:math.pow(theta, 2) * dphi * dphi)
   end
 
   @doc """
@@ -114,9 +135,10 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.rindler_interval(9.8, 1, 1, 0) < 0
       true
   """
+
   @spec rindler_interval(number, number, number, number, number) :: float
   def rindler_interval(g, x_prime, dt_prime, dx_prime, c \\ 1) do
-    -(1 + g * x_prime / (c * c)) ** 2 * c * c * dt_prime * dt_prime +
+    -:math.pow(1 + g * x_prime / (c * c), 2) * c * c * dt_prime * dt_prime +
       dx_prime * dx_prime
   end
 
@@ -127,7 +149,8 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.flrw_interval(1, 1, 0, 1)
       -1
   """
-  @spec flrw_interval(number, number, number, number) :: float
+
+  @spec flrw_interval(number, number, number, number) :: number()
   def flrw_interval(dt, a, dr, c \\ 1) do
     -(c * c * dt * dt) + a * a * dr * dr
   end
@@ -136,19 +159,23 @@ defmodule AstroEquations.Physics.GeneralRelativity do
   # Tensor Algebra
   # ---------------------------------------------------------------------------
 
+  @spec metric_row_dot([number], number) :: number
+  defp metric_row_dot(metric_row, component) do
+    Enum.reduce(0..3, 0, fn j, acc ->
+      acc + Enum.at(metric_row, j) * component
+    end)
+  end
+
   @doc "Lowers an index of a 4-vector using the metric: V_μ = g_μν V^ν."
+
   @spec lower_index([number], [[number]], [atom], non_neg_integer) :: [number]
   def lower_index(tensor, metric, _index_positions, index_to_lower) do
     tensor
     |> Enum.with_index()
     |> Enum.map(fn {component, i} ->
-      if i == index_to_lower do
-        Enum.reduce(0..3, 0, fn j, acc ->
-          acc + Enum.at(Enum.at(metric, i), j) * component
-        end)
-      else
-        component
-      end
+      if i == index_to_lower,
+        do: metric_row_dot(Enum.at(metric, i), component),
+        else: component
     end)
   end
 
@@ -157,6 +184,7 @@ defmodule AstroEquations.Physics.GeneralRelativity do
 
   For diagonal metrics the inverse is simply 1/g_μμ on the diagonal.
   """
+
   @spec raise_index([number], [[number]], [atom], non_neg_integer) :: [number]
   def raise_index(tensor, metric, _index_positions, index_to_raise) do
     inv = inverse_metric(metric)
@@ -164,31 +192,29 @@ defmodule AstroEquations.Physics.GeneralRelativity do
     tensor
     |> Enum.with_index()
     |> Enum.map(fn {component, i} ->
-      if i == index_to_raise do
-        Enum.reduce(0..3, 0, fn j, acc ->
-          acc + Enum.at(Enum.at(inv, i), j) * component
-        end)
-      else
-        component
-      end
+      if i == index_to_raise,
+        do: metric_row_dot(Enum.at(inv, i), component),
+        else: component
     end)
   end
 
   @doc "Transforms a contravariant vector under a Jacobian: V'^i = (∂x'^i/∂x^j) V^j."
+
   @spec transform_tensor([number], [[number]], [[number]]) :: [number]
   def transform_tensor(tensor, jacobian, _inverse_jacobian) when is_list(tensor) do
-    if not is_list(List.first(tensor)) do
+    if is_list(List.first(tensor)) do
+      tensor
+    else
       Enum.map(0..3, fn i ->
         Enum.reduce(0..3, 0, fn j, acc ->
           acc + Enum.at(tensor, j) * Enum.at(Enum.at(jacobian, j), i)
         end)
       end)
-    else
-      tensor
     end
   end
 
   @doc "Minkowski (or general metric) inner product of two four-vectors: a·b = g_μν aμ bν."
+
   @spec four_vector_product([number], [number], [[number]]) :: float
   def four_vector_product(a, b, metric) do
     Enum.reduce(0..3, 0, fn i, acc1 ->
@@ -203,6 +229,7 @@ defmodule AstroEquations.Physics.GeneralRelativity do
 
   For non-diagonal metrics use a proper matrix inversion library.
   """
+
   @spec inverse_metric([[number]]) :: [[number]]
   def inverse_metric(metric) do
     Enum.map(metric, fn row ->
@@ -227,9 +254,10 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.gravitational_time_dilation(1.989e30, 1.0e15) |> Float.round(6)
       1.0
   """
+
   @spec gravitational_time_dilation(number, number) :: float
-  def gravitational_time_dilation(mass, radius) do
-    rs = 2 * @gravitational_constant * mass / @speed_of_light ** 2
+  def gravitational_time_dilation(mass, radius) when is_positive(mass) and is_positive(radius) do
+    rs = 2 * @gravitational_constant * mass / @speed_of_light * @speed_of_light
     :math.sqrt(max(1 - rs / radius, 0.0))
   end
 
@@ -240,9 +268,10 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.gravitational_redshift(1.989e30, 6.957e8) > 0
       true
   """
+
   @spec gravitational_redshift(number, number) :: float
-  def gravitational_redshift(mass, r_emit) do
-    rs = 2 * @gravitational_constant * mass / @speed_of_light ** 2
+  def gravitational_redshift(mass, r_emit) when is_positive(mass) and is_positive(r_emit) do
+    rs = 2 * @gravitational_constant * mass / @speed_of_light * @speed_of_light
     1.0 / :math.sqrt(max(1 - rs / r_emit, 1.0e-15)) - 1
   end
 
@@ -255,9 +284,10 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.schwarzschild_radius(1.989e30) > 0
       true
   """
+
   @spec schwarzschild_radius(number) :: float
-  def schwarzschild_radius(mass) do
-    2 * @gravitational_constant * mass / @speed_of_light ** 2
+  def schwarzschild_radius(mass) when is_positive(mass) do
+    2 * @gravitational_constant * mass / @speed_of_light * @speed_of_light
   end
 
   @doc """
@@ -273,9 +303,10 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.hawking_temperature(1.989e30) > 0
       true
   """
+
   @spec hawking_temperature(number) :: float
-  def hawking_temperature(mass) do
-    @hbar * @speed_of_light ** 3 /
+  def hawking_temperature(mass) when is_positive(mass) do
+    @hbar * :math.pow(@speed_of_light, 3) /
       (8 * :math.pi() * @gravitational_constant * mass * @boltzmann)
   end
 
@@ -286,9 +317,10 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.photon_sphere_radius(1.989e30) > 0
       true
   """
+
   @spec photon_sphere_radius(number) :: float
-  def photon_sphere_radius(mass) do
-    3 * @gravitational_constant * mass / @speed_of_light ** 2
+  def photon_sphere_radius(mass) when is_positive(mass) do
+    3 * @gravitational_constant * mass / @speed_of_light * @speed_of_light
   end
 
   @doc """
@@ -299,9 +331,10 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.gravitational_wave_strain(1.0e47, 1.0e25) > 0
       true
   """
+
   @spec gravitational_wave_strain(number, number) :: float
-  def gravitational_wave_strain(d2Q_dt2, distance) do
-    2 * @gravitational_constant / @speed_of_light ** 4 * d2Q_dt2 / distance
+  def gravitational_wave_strain(d2_q_dt2, distance) when is_positive(distance) do
+    2 * @gravitational_constant / :math.pow(@speed_of_light, 4) * d2_q_dt2 / distance
   end
 
   @doc """
@@ -312,10 +345,12 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.orbital_precession(1.989e30, 5.79e10, 0.206) > 0
       true
   """
+
   @spec orbital_precession(number, number, number) :: float
-  def orbital_precession(mass, a, e) do
+  def orbital_precession(mass, a, e)
+      when is_positive(mass) and is_positive(a) and is_non_negative(e) do
     6 * :math.pi() * @gravitational_constant * mass /
-      (a * (1 - e * e) * @speed_of_light ** 2)
+      (a * (1 - e * e) * @speed_of_light * @speed_of_light)
   end
 
   @doc """
@@ -325,9 +360,10 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.light_deflection(1.989e30, 6.957e8) > 0
       true
   """
+
   @spec light_deflection(number, number) :: float
-  def light_deflection(mass, impact_param) do
-    4 * @gravitational_constant * mass / (impact_param * @speed_of_light ** 2)
+  def light_deflection(mass, impact_param) when is_positive(mass) do
+    4 * @gravitational_constant * mass / (impact_param * @speed_of_light * @speed_of_light)
   end
 
   @doc """
@@ -341,9 +377,10 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.radial_freefall_velocity(1.989e30, 1.0e9) < 0
       true
   """
+
   @spec radial_freefall_velocity(number, number) :: float
-  def radial_freefall_velocity(mass, r) do
-    rs = 2 * @gravitational_constant * mass / @speed_of_light ** 2
+  def radial_freefall_velocity(mass, r) when is_positive(mass) do
+    rs = 2 * @gravitational_constant * mass / @speed_of_light * @speed_of_light
 
     if r <= rs,
       do: 0.0,
@@ -363,8 +400,9 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.hubble_from_density(9.47e-27) > 0
       true
   """
+
   @spec hubble_from_density(number) :: float
-  def hubble_from_density(rho) do
+  def hubble_from_density(rho) when is_positive(rho) do
     :math.sqrt(8 * :math.pi() * @gravitational_constant * rho / 3)
   end
 
@@ -375,8 +413,9 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.critical_density(2.27e-18) > 0
       true
   """
+
   @spec critical_density(number) :: float
-  def critical_density(h) do
+  def critical_density(h) when is_positive(h) do
     3 * h * h / (8 * :math.pi() * @gravitational_constant)
   end
 
@@ -387,6 +426,7 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.density_parameter(9.47e-27, 9.47e-27) |> Float.round(4)
       1.0
   """
+
   @spec density_parameter(number, number) :: float
   def density_parameter(rho, rho_c), do: rho / rho_c
 
@@ -397,6 +437,7 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.scale_factor_matter(1, 1)
       1.0
   """
+
   @spec scale_factor_matter(number, number, number) :: float
   def scale_factor_matter(t, t0, a0 \\ 1.0) do
     a0 * :math.pow(t / t0, 2 / 3)
@@ -410,7 +451,9 @@ defmodule AstroEquations.Physics.GeneralRelativity do
       iex> GeneralRelativity.lookback_time(0, 2.27e-18)
       0.0
   """
+
   @spec lookback_time(number, number) :: float
+
   def lookback_time(z, h0) do
     2.0 / 3.0 / h0 * (1 - 1 / :math.pow(1 + z, 1.5))
   end
