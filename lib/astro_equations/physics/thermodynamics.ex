@@ -21,19 +21,41 @@ defmodule AstroEquations.Physics.Thermodynamics do
   - Van der Waals equation of state
   - Virial temperature (gravitational systems)
   """
+  use AstroEquations.Guards
+
+  # ---------------------------------------------------------------------------
+  # Types
+  # ---------------------------------------------------------------------------
+
+  @typedoc "Thermodynamic temperature in kelvin (K). Must be positive."
+  @type temperature :: float()
+
+  @typedoc "Pressure in pascals (Pa). Must be positive."
+  @type pressure :: float()
+
+  @typedoc "Volume in cubic metres (m³). Must be positive."
+  @type volume :: float()
+
+  @typedoc "Energy in joules (J)."
+  @type energy :: float()
+
+  @typedoc "Entropy in joules per kelvin (J/K)."
+  @type entropy :: float()
 
   # J/K
-  @boltzmann 1.380649e-23
+  @boltzmann 1.380_649e-23
   # J·s
-  @planck 6.62607015e-34
+  @planck 6.626_070_15e-34
   # m/s
   @speed_light 299_792_458
   # m·K
-  @wien_b 2.897771955e-3
+  @wien_b 2.897_771_955e-3
   # W/(m²·K⁴)
-  @stefan_sigma 5.670374419e-8
+  @stefan_sigma 5.670_374_419e-8
   # kg
-  @proton_mass 1.67262192369e-27
+  @proton_mass 1.672_621_923_69e-27
+  # m³ kg⁻¹ s⁻²
+  @gravitational_constant 6.674_30e-11
 
   # ---------------------------------------------------------------------------
   # Ideal Gas Law
@@ -47,6 +69,7 @@ defmodule AstroEquations.Physics.Thermodynamics do
       iex> Thermodynamics.ideal_gas_law(p: 101_325, v: 0.0224, n: 1, t: nil)
       %{t: _}
   """
+
   @spec ideal_gas_law(Keyword.t()) :: map()
   def ideal_gas_law(p: nil, v: v, n: n, k_b: k_b, t: t), do: %{p: n * k_b * t / v}
   def ideal_gas_law(p: p, v: nil, n: n, k_b: k_b, t: t), do: %{v: n * k_b * t / p}
@@ -71,6 +94,7 @@ defmodule AstroEquations.Physics.Thermodynamics do
   ## Returns
     %{check: float} — absolute deviation from ideal behaviour
   """
+
   @spec molar_ideal_gas_law(number | nil, number | nil, number | nil, number | nil, number) ::
           map()
   def molar_ideal_gas_law(p, v, n_mol, t, r \\ 8.31446) do
@@ -78,8 +102,9 @@ defmodule AstroEquations.Physics.Thermodynamics do
   end
 
   @doc "Mean translational kinetic energy per molecule in an ideal gas: ⟨KE⟩ = 3k_BT/2."
+
   @spec mean_kinetic_energy(number, number) :: float
-  def mean_kinetic_energy(temperature, k_b \\ @boltzmann) do
+  def mean_kinetic_energy(temperature, k_b \\ @boltzmann) when is_positive(temperature) do
     1.5 * k_b * temperature
   end
 
@@ -97,26 +122,32 @@ defmodule AstroEquations.Physics.Thermodynamics do
       iex> Thermodynamics.equipartition_energy(3, 300) > 0
       true
   """
+
   @spec equipartition_energy(number, number, number) :: float
-  def equipartition_energy(degrees_of_freedom, temperature, k_b \\ @boltzmann) do
+  def equipartition_energy(degrees_of_freedom, temperature, k_b \\ @boltzmann)
+      when is_positive(temperature) do
     degrees_of_freedom / 2 * k_b * temperature
   end
 
   @doc "Root-mean-square speed of molecules in an ideal gas: v_rms = √(3k_BT/m)."
+
   @spec rms_speed(number, number, number) :: float
-  def rms_speed(temperature, mass, k_b \\ @boltzmann) do
+  def rms_speed(temperature, mass, k_b \\ @boltzmann)
+      when is_positive(temperature) and is_positive(mass) do
     :math.sqrt(3 * k_b * temperature / mass)
   end
 
   @doc "Most probable speed in the Maxwell-Boltzmann distribution: v_p = √(2k_BT/m)."
+
   @spec most_probable_speed(number, number, number) :: float
-  def most_probable_speed(temperature, mass, k_b \\ @boltzmann) do
+  def most_probable_speed(temperature, mass, k_b \\ @boltzmann) when is_positive(temperature) do
     :math.sqrt(2 * k_b * temperature / mass)
   end
 
   @doc "Mean (average) molecular speed: ⟨v⟩ = √(8k_BT/(πm))."
+
   @spec mean_speed(number, number, number) :: float
-  def mean_speed(temperature, mass, k_b \\ @boltzmann) do
+  def mean_speed(temperature, mass, k_b \\ @boltzmann) when is_positive(temperature) do
     :math.sqrt(8 * k_b * temperature / (:math.pi() * mass))
   end
 
@@ -125,16 +156,19 @@ defmodule AstroEquations.Physics.Thermodynamics do
   # ---------------------------------------------------------------------------
 
   @doc "Heat transferred to raise a mass by ΔT: Q = mcΔT."
-  @spec heat_energy(number, number, number) :: float
-  def heat_energy(m, c, delta_t), do: m * c * delta_t * 1.0
+
+  @spec heat_energy(number, number, number) :: number()
+  def heat_energy(m, c, delta_t), do: m * c * delta_t
 
   @doc "Heat capacity from the slope of the Q-T curve: C = dQ/dT."
+
   @spec heat_capacity(number, number) :: float
-  def heat_capacity(dq, dt), do: dq / dt * 1.0
+  def heat_capacity(dq, dt), do: dq / dt
 
   @doc "Specific heat capacity: c = C/m."
+
   @spec specific_heat_capacity(number, number) :: float
-  def specific_heat_capacity(c_heat, m), do: c_heat / m * 1.0
+  def specific_heat_capacity(c_heat, m), do: c_heat / m
 
   @doc """
   First Law of Thermodynamics: ΔU = Q - W
@@ -143,32 +177,38 @@ defmodule AstroEquations.Physics.Thermodynamics do
       iex> Thermodynamics.first_law(500, 200)
       300.0
   """
-  @spec first_law(number, number) :: float
-  def first_law(q, w), do: (q - w) * 1.0
+
+  @spec first_law(number, number) :: number()
+  def first_law(q, w), do: q - w
 
   @doc "Work done by a gas at constant pressure: W = PΔV."
-  @spec isobaric_work(number, number) :: float
-  def isobaric_work(pressure, delta_v), do: pressure * delta_v * 1.0
+
+  @spec isobaric_work(number, number) :: number()
+  def isobaric_work(pressure, delta_v), do: pressure * delta_v
 
   @doc "Work done by an ideal gas in an isothermal expansion: W = Nk_BT ln(V₂/V₁)."
+
   @spec isothermal_work(number, number, number, number, number) :: float
-  def isothermal_work(n, temperature, v1, v2, k_b \\ @boltzmann) do
+  def isothermal_work(n, temperature, v1, v2, k_b \\ @boltzmann) when is_positive(temperature) do
     n * k_b * temperature * :math.log(v2 / v1)
   end
 
   @doc "Work done by a gas in a reversible adiabatic process: W = (P₁V₁ - P₂V₂)/(γ-1)."
+
   @spec adiabatic_work(number, number, number, number, number) :: float
   def adiabatic_work(p1, v1, p2, v2, gamma) do
     (p1 * v1 - p2 * v2) / (gamma - 1)
   end
 
   @doc "Pressure after adiabatic compression/expansion: P₂ = P₁(V₁/V₂)^γ."
+
   @spec adiabatic_pressure(number, number, number, number) :: float
   def adiabatic_pressure(p1, v1, v2, gamma) do
     p1 * :math.pow(v1 / v2, gamma)
   end
 
   @doc "Temperature after adiabatic compression/expansion: T₂ = T₁(V₁/V₂)^(γ-1)."
+
   @spec adiabatic_temperature(number, number, number, number) :: float
   def adiabatic_temperature(t1, v1, v2, gamma) do
     t1 * :math.pow(v1 / v2, gamma - 1)
@@ -190,7 +230,8 @@ defmodule AstroEquations.Physics.Thermodynamics do
       iex> Thermodynamics.enthalpy(1000.0, 101_325.0, 0.001) |> Float.round(2)
       1101.325
   """
-  @spec enthalpy(number, number, number) :: float
+
+  @spec enthalpy(number, number, number) :: number()
   def enthalpy(internal_energy, pressure, volume) do
     internal_energy + pressure * volume
   end
@@ -209,8 +250,10 @@ defmodule AstroEquations.Physics.Thermodynamics do
       iex> Thermodynamics.helmholtz_free_energy(1000.0, 300.0, 2.0) |> Float.round(1)
       400.0
   """
-  @spec helmholtz_free_energy(number, number, number) :: float
-  def helmholtz_free_energy(internal_energy, temperature, entropy) do
+
+  @spec helmholtz_free_energy(number, number, number) :: number()
+  def helmholtz_free_energy(internal_energy, temperature, entropy)
+      when is_positive(temperature) do
     internal_energy - temperature * entropy
   end
 
@@ -230,8 +273,10 @@ defmodule AstroEquations.Physics.Thermodynamics do
       iex> Thermodynamics.gibbs_free_energy(1000.0, 101_325.0, 0.001, 300.0, 2.0) < 1000.0
       true
   """
-  @spec gibbs_free_energy(number, number, number, number, number) :: float
-  def gibbs_free_energy(internal_energy, pressure, volume, temperature, entropy) do
+
+  @spec gibbs_free_energy(number, number, number, number, number) :: number()
+  def gibbs_free_energy(internal_energy, pressure, volume, temperature, entropy)
+      when is_positive(temperature) do
     internal_energy + pressure * volume - temperature * entropy
   end
 
@@ -240,12 +285,14 @@ defmodule AstroEquations.Physics.Thermodynamics do
   # ---------------------------------------------------------------------------
 
   @doc "Boltzmann entropy in terms of microstates: S = k_B ln Ω."
+
   @spec entropy(number, number) :: float
   def entropy(omega, k_b \\ @boltzmann), do: k_b * :math.log(omega)
 
   @doc "Clausius entropy change for a reversible process: ΔS = Q_rev/T."
+
   @spec entropy_change(number, number) :: float
-  def entropy_change(q_rev, temperature), do: q_rev / temperature * 1.0
+  def entropy_change(q_rev, temperature) when is_positive(temperature), do: q_rev / temperature
 
   @doc """
   Number of microstates for an Einstein solid: Ω = (q+N-1)! / (q! (N-1)!)
@@ -253,6 +300,7 @@ defmodule AstroEquations.Physics.Thermodynamics do
   Note: uses integer arithmetic — this will overflow for large q or N.
   For large values, use the Stirling approximation instead.
   """
+
   @spec microstates(non_neg_integer, pos_integer) :: pos_integer
   def microstates(q, n) do
     div(factorial(q + n - 1), factorial(q) * factorial(n - 1))
@@ -270,6 +318,7 @@ defmodule AstroEquations.Physics.Thermodynamics do
       iex> Thermodynamics.microstates_stirling(100, 100) > 0
       true
   """
+
   @spec microstates_stirling(number, number) :: float
   def microstates_stirling(q, n) do
     qn = q + n
@@ -287,14 +336,18 @@ defmodule AstroEquations.Physics.Thermodynamics do
       iex> Thermodynamics.carnot_efficiency(500, 300) |> Float.round(4)
       0.4
   """
+
   @spec carnot_efficiency(number, number) :: float
-  def carnot_efficiency(t_hot, t_cold), do: 1 - t_cold / t_hot
+  def carnot_efficiency(t_hot, t_cold) when is_positive(t_hot) and is_positive(t_cold),
+    do: 1 - t_cold / t_hot
 
   @doc "Coefficient of performance of a Carnot refrigerator: COP = T_cold/(T_hot − T_cold)."
+
   @spec cop_refrigerator(number, number) :: float
   def cop_refrigerator(t_hot, t_cold), do: t_cold / (t_hot - t_cold)
 
   @doc "Coefficient of performance of a Carnot heat pump: COP = T_hot/(T_hot − T_cold)."
+
   @spec cop_heat_pump(number, number) :: float
   def cop_heat_pump(t_hot, t_cold), do: t_hot / (t_hot - t_cold)
 
@@ -303,18 +356,22 @@ defmodule AstroEquations.Physics.Thermodynamics do
   # ---------------------------------------------------------------------------
 
   @doc "Mayer's relation between molar heat capacities: Cₚ = Cᵥ + R."
-  @spec mayers_relation(number, number) :: float
+
+  @spec mayers_relation(number, number) :: number()
   def mayers_relation(cv, r \\ 8.31446), do: cv + r
 
   @doc "Ratio of molar heat capacities: γ = Cₚ/Cᵥ."
+
   @spec heat_capacity_ratio(number, number) :: float
   def heat_capacity_ratio(cp, cv), do: cp / cv
 
   @doc "Molar isochoric heat capacity for a monatomic ideal gas: Cᵥ = 3R/2."
+
   @spec cv_monatomic(number) :: float
   def cv_monatomic(r \\ 8.31446), do: 1.5 * r
 
   @doc "Molar isochoric heat capacity for a diatomic ideal gas (room temperature): Cᵥ = 5R/2."
+
   @spec cv_diatomic(number) :: float
   def cv_diatomic(r \\ 8.31446), do: 2.5 * r
 
@@ -329,6 +386,7 @@ defmodule AstroEquations.Physics.Thermodynamics do
       iex> Thermodynamics.newton_cooling(100, 20, 0.1, 0) |> Float.round(4)
       100.0
   """
+
   @spec newton_cooling(number, number, number, number) :: float
   def newton_cooling(t0, t_env, k, t) do
     t_env + (t0 - t_env) * :math.exp(-k * t)
@@ -339,16 +397,19 @@ defmodule AstroEquations.Physics.Thermodynamics do
   # ---------------------------------------------------------------------------
 
   @doc "Photon energy: E = hf."
-  @spec photon_energy(number, number) :: float
+
+  @spec photon_energy(number, number) :: number()
   def photon_energy(f, h \\ @planck), do: h * f
 
   @doc "Wien's displacement law for the peak emission wavelength: λ_max = b/T."
+
   @spec wiens_displacement(number, number) :: float
-  def wiens_displacement(t, b \\ @wien_b), do: b / t
+  def wiens_displacement(t, b \\ @wien_b) when is_positive(t), do: b / t
 
   @doc "Radiant flux density from a blackbody surface: F = σT⁴."
+
   @spec stefan_boltzmann(number, number) :: float
-  def stefan_boltzmann(t, sigma \\ @stefan_sigma), do: sigma * :math.pow(t, 4)
+  def stefan_boltzmann(t, sigma \\ @stefan_sigma) when is_positive(t), do: sigma * :math.pow(t, 4)
 
   @doc """
   Total power radiated by a sphere: P = 4πR²σT⁴.
@@ -359,9 +420,10 @@ defmodule AstroEquations.Physics.Thermodynamics do
       iex> Thermodynamics.stefan_boltzmann_total(6.957e8, 5778.0) > 0
       true
   """
+
   @spec stefan_boltzmann_total(number, number, number) :: float
-  def stefan_boltzmann_total(radius, t, sigma \\ @stefan_sigma) do
-    4 * :math.pi() * radius ** 2 * sigma * :math.pow(t, 4)
+  def stefan_boltzmann_total(radius, t, sigma \\ @stefan_sigma) when is_positive(radius) do
+    4 * :math.pi() * radius * radius * sigma * :math.pow(t, 4)
   end
 
   @doc """
@@ -376,26 +438,31 @@ defmodule AstroEquations.Physics.Thermodynamics do
       iex> Thermodynamics.effective_temperature(3.828e26, 6.957e8) |> round()
       5778
   """
+
   @spec effective_temperature(number, number, number) :: float
-  def effective_temperature(luminosity, radius, sigma \\ @stefan_sigma) do
-    :math.pow(luminosity / (4 * :math.pi() * radius ** 2 * sigma), 0.25)
+  def effective_temperature(luminosity, radius, sigma \\ @stefan_sigma)
+      when is_positive(radius) do
+    :math.pow(luminosity / (4 * :math.pi() * radius * radius * sigma), 0.25)
   end
 
   @doc "Spectral radiance (per unit wavelength) from the Planck function."
+
   @spec planck_wavelength(number, number, number, number, number) :: float
-  def planck_wavelength(lambda, t, h \\ @planck, c \\ @speed_light, k_b \\ @boltzmann) do
-    2 * h * c ** 2 / :math.pow(lambda, 5) *
-      1 / (:math.exp(h * c / (lambda * k_b * t)) - 1)
+  def planck_wavelength(lambda, t, h \\ @planck, c \\ @speed_light, k_b \\ @boltzmann)
+      when is_positive(lambda) and is_positive(t) do
+    2 * h * c * c / :math.pow(lambda, 5) * (:math.exp(h * c / (lambda * k_b * t)) - 1)
   end
 
   @doc "Spectral radiance (per unit frequency) from the Planck function."
+
   @spec planck_frequency(number, number, number, number, number) :: float
   def planck_frequency(nu, t, h \\ @planck, c \\ @speed_light, k_b \\ @boltzmann) do
-    2 * h * nu ** 3 / c ** 2 *
-      1 / (:math.exp(h * nu / (k_b * t)) - 1)
+    2 * h * :math.pow(nu, 3) /
+      (c * c * (:math.exp(h * nu / (k_b * t)) - 1))
   end
 
   @doc "Classical Rayleigh-Jeans long-wavelength approximation to the Planck function."
+
   @spec rayleigh_jeans(number, number, number, number) :: float
   def rayleigh_jeans(lambda, t, k_b \\ @boltzmann, c \\ @speed_light) do
     2 * c * k_b * t / :math.pow(lambda, 4)
@@ -413,12 +480,13 @@ defmodule AstroEquations.Physics.Thermodynamics do
       iex> Thermodynamics.maxwell_boltzmann(500, 4.65e-26, 300) > 0
       true
   """
+
   @spec maxwell_boltzmann(number, number, number, number) :: float
   def maxwell_boltzmann(v, m, t, k_b \\ @boltzmann) do
     a = m / (2 * k_b * t)
 
     4 * :math.pi() * :math.pow(a / :math.pi(), 1.5) *
-      v ** 2 * :math.exp(-a * v ** 2)
+      v * v * :math.exp(-a * v * v)
   end
 
   # ---------------------------------------------------------------------------
@@ -443,9 +511,11 @@ defmodule AstroEquations.Physics.Thermodynamics do
       iex> Thermodynamics.van_der_waals_pressure(6.022e23, 300, 0.0224, 2.253e-49, 3.92e-29) > 0
       true
   """
+
   @spec van_der_waals_pressure(number, number, number, number, number, number) :: float
-  def van_der_waals_pressure(n, temperature, volume, a, b, k_b \\ @boltzmann) do
-    n * k_b * temperature / (volume - n * b) - a * n ** 2 / volume ** 2
+  def van_der_waals_pressure(n, temperature, volume, a, b, k_b \\ @boltzmann)
+      when is_positive(temperature) do
+    n * k_b * temperature / (volume - n * b) - a * n * n / volume * volume
   end
 
   # ---------------------------------------------------------------------------
@@ -469,11 +539,11 @@ defmodule AstroEquations.Physics.Thermodynamics do
       iex> Thermodynamics.virial_temperature(0.6, 1.989e30, 6.957e8) > 0
       true
   """
-  @spec virial_temperature(number, number, number, number) :: float
-  def virial_temperature(mean_mol_weight, mass, radius, k_b \\ @boltzmann) do
-    g = 6.67430e-11
 
-    mean_mol_weight * @proton_mass * g * mass / (2 * k_b * radius)
+  @spec virial_temperature(number, number, number, number) :: float
+  def virial_temperature(mean_mol_weight, mass, radius, k_b \\ @boltzmann)
+      when is_positive(mass) do
+    @gravitational_constant * mean_mol_weight * @proton_mass * mass / (2 * k_b * radius)
   end
 
   # ---------------------------------------------------------------------------
