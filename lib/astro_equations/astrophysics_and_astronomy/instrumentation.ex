@@ -17,6 +17,26 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
   - Photon count rate from source magnitude
   - Optimal extraction aperture radius
   """
+  use AstroEquations.Guards
+
+  # ---------------------------------------------------------------------------
+  # Types
+  # ---------------------------------------------------------------------------
+
+  @typedoc "Focal length in metres (m). Must be positive."
+  @type focal_length :: float()
+
+  @typedoc "Aperture diameter in metres (m). Must be positive."
+  @type diameter :: float()
+
+  @typedoc "Wavelength of light in metres (m). Must be positive."
+  @type wavelength :: float()
+
+  @typedoc "Fried parameter r₀ in metres (m). Must be positive."
+  @type fried_param :: float()
+
+  @typedoc "Signal-to-noise ratio. Non-negative."
+  @type snr :: float()
 
   @arcsec_per_rad 206_265.0
 
@@ -48,6 +68,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.lensmakers_equation(1.5, 0.1, -0.1, 0.01, true)
       0.1
   """
+
   @spec lensmakers_equation(number, number, number, number, boolean) :: float
   def lensmakers_equation(n, r1, r2, d, thin_lens \\ false) do
     if thin_lens do
@@ -65,8 +86,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.focal_ratio(0.5, 0.1)
       5.0
   """
+
   @spec focal_ratio(number, number) :: float
-  def focal_ratio(f, d), do: f / d
+  def focal_ratio(f, d) when is_positive(f) and is_positive(d), do: f / d
 
   @doc """
   Calculates the field of view in radians: FoV = detector_width / focal_length
@@ -84,10 +106,17 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.field_of_view(0.01, 0.2, 10)
       0.005
   """
+
   @spec field_of_view(number, number, number, number | nil) :: float
-  def field_of_view(wd, dt, n, fsys \\ nil) do
-    fl = fsys || dt * n
-    wd / fl
+
+  def field_of_view(wd, dt, n, nil)
+      when is_positive(wd) and is_positive(dt) and is_positive(n) do
+    wd / (dt * n)
+  end
+
+  def field_of_view(wd, _dt, _n, fsys)
+      when is_positive(wd) and is_positive(fsys) do
+    wd / fsys
   end
 
   @doc """
@@ -97,6 +126,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.fov_to_arcsec(0.001) |> Float.round(3)
       206.265
   """
+
   @spec fov_to_arcsec(number) :: float
   def fov_to_arcsec(fov_rad), do: fov_rad * @arcsec_per_rad
 
@@ -107,8 +137,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.collecting_area(0.5) |> Float.round(6)
       0.196350
   """
+
   @spec collecting_area(number) :: float
-  def collecting_area(diameter) do
+  def collecting_area(diameter) when is_positive(diameter) do
     :math.pi() * :math.pow(diameter / 2, 2)
   end
 
@@ -129,7 +160,8 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.etendue(0.2, 1.0e-6) |> Float.round(10)
       2.0e-7
   """
-  @spec etendue(number, number) :: float
+
+  @spec etendue(number, number) :: number()
   def etendue(area, solid_angle), do: area * solid_angle
 
   # ---------------------------------------------------------------------------
@@ -143,8 +175,11 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.diffraction_limit(500.0e-9, 0.1)
       6.1e-6
   """
+
   @spec diffraction_limit(number, number) :: float
-  def diffraction_limit(wavelength, diameter), do: 1.22 * wavelength / diameter
+  def diffraction_limit(wavelength, diameter)
+      when is_positive(wavelength) and is_positive(diameter),
+      do: 1.22 * wavelength / diameter
 
   @doc """
   Seeing (atmospheric) resolution limit in radians: θ_see = 0.98 λ / r₀
@@ -153,8 +188,10 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.seeing_limit(500.0e-9, 0.15) > 0
       true
   """
+
   @spec seeing_limit(number, number) :: float
-  def seeing_limit(wavelength, r0), do: 0.98 * wavelength / r0
+  def seeing_limit(wavelength, r0) when is_positive(wavelength) and is_positive(r0),
+    do: 0.98 * wavelength / r0
 
   @doc """
   Combines diffraction and seeing limits in quadrature: θ_total = √(θ_diff² + θ_see²)
@@ -163,8 +200,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.total_resolution_limit(500.0e-9, 0.4, 0.2) > 0
       true
   """
+
   @spec total_resolution_limit(number, number, number) :: float
-  def total_resolution_limit(wavelength, diameter, r0) do
+  def total_resolution_limit(wavelength, diameter, r0) when is_positive(wavelength) do
     d = diffraction_limit(wavelength, diameter)
     s = seeing_limit(wavelength, r0)
     :math.sqrt(d * d + s * s)
@@ -186,6 +224,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.resolution_arcsec(0.5, 0.1) |> Float.round(4)
       1.258
   """
+
   @spec resolution_arcsec(number, number) :: float
   def resolution_arcsec(wavelength_um, diameter_m) do
     0.2516 * wavelength_um / diameter_m
@@ -216,8 +255,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.nyquist_sampling(6.0e-6, 2.0, 500.0e-9, 0.1) > 0
       true
   """
+
   @spec nyquist_sampling(number, number, number, number) :: float
-  def nyquist_sampling(p, fsys, wavelength, dt) do
+  def nyquist_sampling(p, fsys, wavelength, dt) when is_positive(fsys) do
     resolution_element = 1.22 * wavelength * fsys / dt
     resolution_element / p
   end
@@ -229,6 +269,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.plate_scale(1.0)
       {1.0, 206265.0}
   """
+
   @spec plate_scale(number) :: {float, float}
   def plate_scale(f), do: {1 / f, @arcsec_per_rad / f}
 
@@ -239,6 +280,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.image_scale(6.0e-6, 2.0) > 0
       true
   """
+
   @spec image_scale(number, number) :: float
   def image_scale(pixel_size, f), do: @arcsec_per_rad * pixel_size / f
 
@@ -262,6 +304,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.photon_count_rate(0.0, 1.0) > 0
       true
   """
+
   @spec photon_count_rate(number, number, number, number) :: float
   def photon_count_rate(magnitude, area_m2, qe \\ 1.0, f0_photons \\ 1.0e7) do
     f0_photons * :math.pow(10, -0.4 * magnitude) * area_m2 * qe
@@ -278,8 +321,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.fitting_error(0.1, 0.2) |> Float.round(4)
       0.103
   """
+
   @spec fitting_error(number, number) :: float
-  def fitting_error(d_sub, r0), do: 0.26 * :math.pow(d_sub / r0, 5 / 3)
+  def fitting_error(d_sub, r0) when is_positive(r0), do: 0.26 * :math.pow(d_sub / r0, 5 / 3)
 
   @doc """
   Total AO error variance from fitting, anisoplanatism, temporal, and WFS noise terms.
@@ -304,6 +348,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.adaptive_optics_error(0.1, 0.15, 0.01, 0.2, 0.5, 0.02, 10, 0.3, 0.001) > 0
       true
   """
+
   @spec adaptive_optics_error(
           number,
           number,
@@ -316,7 +361,8 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
           number
         ) ::
           float
-  def adaptive_optics_error(d_sub, r0, theta, theta_0, tau, tau_0, c_wfs, lambda, f_t) do
+  def adaptive_optics_error(d_sub, r0, theta, theta_0, tau, tau_0, c_wfs, lambda, f_t)
+      when is_positive(r0) do
     fitting_term = 0.3 * :math.pow(d_sub / r0, 5 / 3)
     angular_term = :math.pow(theta / theta_0, 5 / 3)
     time_term = 28.4 * :math.pow(tau / tau_0, 5 / 3)
@@ -334,6 +380,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.strehl_ratio(0.0) |> Float.round(4)
       1.0
   """
+
   @spec strehl_ratio(number) :: float
   def strehl_ratio(sigma_sq), do: :math.exp(-sigma_sq)
 
@@ -361,8 +408,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.signal_to_noise(100, 10, 5, 1000, 0.1, 2.0) |> Float.round(3)
       27.386
   """
+
   @spec signal_to_noise(number, number, number, number, number, number) :: float
-  def signal_to_noise(f, t, b_s, n_p, d, r) do
+  def signal_to_noise(f, t, b_s, n_p, d, r) when is_positive(t) and is_non_negative(f) do
     signal = f * t
     noise = :math.sqrt(signal + b_s * n_p * t + d * n_p * t + :math.pow(r, 2) * n_p)
     signal / noise
@@ -391,6 +439,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.exposure_time_from_snr(10.0, 100, 5, 4, 0.1, 2.0) > 0
       true
   """
+
   @spec exposure_time_from_snr(number, number, number, number, number, number) :: float
   def exposure_time_from_snr(target_snr, f, b_s, n_p, d, r) do
     snr2 = target_snr * target_snr
@@ -422,8 +471,10 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.limiting_magnitude(10, 5, 100, 0.1, 2.0, 5.0) > 0
       true
   """
+
   @spec limiting_magnitude(number, number, number, number, number, number, number) :: float
-  def limiting_magnitude(snr_threshold, f0, area, t, b_sky, omega, qe \\ 1.0) do
+  def limiting_magnitude(snr_threshold, f0, area, t, b_sky, omega, qe \\ 1.0)
+      when is_positive(f0) do
     signal_needed = snr_threshold * :math.sqrt(b_sky * omega * t)
     actual_flux = signal_needed / (qe * area * t)
     -2.5 * :math.log10(actual_flux / f0)
@@ -436,6 +487,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.dynamic_range_db(65_000, 5) > 0
       true
   """
+
   @spec dynamic_range_db(number, number) :: float
   def dynamic_range_db(full_well_capacity, read_noise) do
     20 * :math.log10(full_well_capacity / read_noise)
@@ -459,6 +511,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.ccd_saturation_time(65_000, 10_000, 50, 9) > 0
       true
   """
+
   @spec ccd_saturation_time(number, number, number, number) :: float
   def ccd_saturation_time(full_well_capacity, source_rate, sky_rate, n_pix) do
     full_well_capacity / (source_rate + sky_rate * n_pix)
@@ -479,6 +532,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.optimal_extraction_aperture(3.0) |> Float.round(4)
       4.2
   """
+
   @spec optimal_extraction_aperture(number) :: float
   def optimal_extraction_aperture(fwhm_pixels), do: 1.4 * fwhm_pixels
 
@@ -493,8 +547,11 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.resolving_power(550.0e-9, 0.05e-9)
       11000.0
   """
+
   @spec resolving_power(number, number) :: float
-  def resolving_power(lambda, delta_lambda), do: lambda / delta_lambda
+  def resolving_power(lambda, delta_lambda)
+      when is_positive(lambda) and is_positive(delta_lambda),
+      do: lambda / delta_lambda
 
   @doc """
   Linear (reciprocal) dispersion of a diffraction grating in the image plane.
@@ -514,6 +571,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.grating_dispersion(1.0e-6, 0.0, 1, 0.5) > 0
       true
   """
+
   @spec grating_dispersion(number, number, number, number) :: float
   def grating_dispersion(grating_spacing, beta, order, focal_length) do
     grating_spacing * :math.cos(beta) / (order * focal_length)
@@ -526,6 +584,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.blaze_wavelength(1000, 0.5236) > 0
       true
   """
+
   @spec blaze_wavelength(number, number, number) :: float
   def blaze_wavelength(grating_spacing, blaze_angle, order \\ 1) do
     2 * grating_spacing * :math.sin(blaze_angle) / order
@@ -554,6 +613,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.atmospheric_extinction(10.0, 0.2, :math.pi/3)
       10.4
   """
+
   @spec atmospheric_extinction(number, number, number) :: float
   def atmospheric_extinction(m_lambda_z, a_lambda, z) do
     m_lambda_z + a_lambda * (1 / :math.cos(z))
@@ -566,6 +626,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.airmass(0) |> Float.round(4)
       1.0
   """
+
   @spec airmass(number) :: float
   def airmass(z), do: 1 / :math.cos(z)
 
@@ -580,6 +641,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.tsiolkovsky_rocket_equation(2500, 1000, 500) |> Float.round(3)
       1732.868
   """
+
   @spec tsiolkovsky_rocket_equation(number, number, number) :: float
   def tsiolkovsky_rocket_equation(v_e, m_0, m_f) do
     v_e * :math.log(m_0 / m_f)
@@ -592,6 +654,8 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Instrumentation do
       iex> Instrumentation.specific_impulse(4400, 9.80665) |> Float.round(1)
       448.7
   """
+
   @spec specific_impulse(number, number) :: float
+
   def specific_impulse(v_e, g0 \\ 9.80665), do: v_e / g0
 end
