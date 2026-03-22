@@ -23,3 +23,7 @@ astro_equations-*.tar
 /tmp/
 
 notes.md
+
+/priv/plts/*.plt
+/priv/plts/*.plt.hash
+.dialyzer_ignore.exs
