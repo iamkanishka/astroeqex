@@ -16,11 +16,33 @@ defmodule AstroEquations.Physics.Waves do
   - Acoustic impedance
   - Thin lens and mirror equations
   """
+  use AstroEquations.Guards
+
+  # ---------------------------------------------------------------------------
+  # Types
+  # ---------------------------------------------------------------------------
+
+  @typedoc "Wavelength in metres (m). Must be positive."
+  @type wavelength :: float()
+
+  @typedoc "Frequency in hertz (Hz). Must be positive."
+  @type frequency :: float()
+
+  @typedoc "Angular frequency in radians per second (rad/s)."
+  @type angular_frequency :: float()
+
+  @typedoc "Wave amplitude (m). Non-negative."
+  @type amplitude :: float()
+
+  @typedoc "Angle in radians."
+  @type angle :: float()
 
   # m/s at 20 °C
   @speed_of_sound 343.0
   # m/s
-  @speed_of_light 2.99792458e8
+  @speed_of_light 2.997_924_58e8
+  # Relative tolerance for interference condition checks
+  @interference_tol 1.0e-9
 
   # ---------------------------------------------------------------------------
   # Fundamentals
@@ -33,8 +55,9 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.wave_number(2) |> Float.round(6)
       3.141593
   """
+
   @spec wave_number(number) :: float
-  def wave_number(wavelength), do: 2 * :math.pi() / wavelength
+  def wave_number(wavelength) when is_positive(wavelength), do: 2 * :math.pi() / wavelength
 
   @doc """
   Wave speed from frequency and wavelength: v = f λ
@@ -43,22 +66,30 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.wave_velocity(440, 0.780)
       343.2
   """
-  @spec wave_velocity(number, number) :: float
-  def wave_velocity(frequency, wavelength), do: frequency * wavelength * 1.0
+
+  @spec wave_velocity(number, number) :: number()
+  def wave_velocity(frequency, wavelength)
+      when is_positive(frequency) and is_positive(wavelength),
+      do: frequency * wavelength
 
   @doc "Frequency of a wave from its speed and wavelength: f = v/λ."
+
   @spec frequency(number, number) :: float
-  def frequency(wave_speed, wavelength), do: wave_speed / wavelength
+  def frequency(wave_speed, wavelength) when is_positive(wave_speed) and is_positive(wavelength),
+    do: wave_speed / wavelength
 
   @doc "Wavelength of a wave from its speed and frequency: λ = v/f."
+
   @spec wavelength(number, number) :: float
   def wavelength(wave_speed, freq), do: wave_speed / freq
 
   @doc "Period of oscillation from frequency: T = 1/f."
+
   @spec period(number) :: float
-  def period(frequency), do: 1.0 / frequency
+  def period(frequency) when is_positive(frequency), do: 1.0 / frequency
 
   @doc "Angular frequency from a keyword-list argument: either `period:` or `frequency:`."
+
   @spec angular_frequency(Keyword.t()) :: float | no_return()
   def angular_frequency(opts) do
     cond do
@@ -69,6 +100,7 @@ defmodule AstroEquations.Physics.Waves do
   end
 
   @doc "Angular frequency from ordinary frequency: omega = 2πf."
+
   @spec omega_from_frequency(number) :: float
   def omega_from_frequency(f), do: 2 * :math.pi() * f
 
@@ -91,6 +123,7 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.wave_function(1, 2, 3, 4, 5) |> Float.round(4)
       -0.5366
   """
+
   @spec wave_function(number, number, number, number, number, number) :: float
   def wave_function(
         amplitude,
@@ -104,6 +137,7 @@ defmodule AstroEquations.Physics.Waves do
   end
 
   @doc "Standing wave formed by two counter-propagating waves: y = 2A sin(kx) cos(omegat)."
+
   @spec standing_wave(number, number, number, number, number) :: float
   def standing_wave(amplitude, k, omega, x, t) do
     2 * amplitude * :math.sin(k * x) * :math.cos(omega * t)
@@ -114,20 +148,23 @@ defmodule AstroEquations.Physics.Waves do
   # ---------------------------------------------------------------------------
 
   @doc "Checks the constructive interference condition: Δd = mλ."
+
   @spec constructive_interference?(number, number, number) :: boolean
   def constructive_interference?(path_diff, wavelength, m \\ 0) do
-    abs(path_diff - m * wavelength) < wavelength * 1.0e-9
+    abs(path_diff - m * wavelength) < wavelength * @interference_tol
   end
 
   @doc "Checks the destructive interference condition: Δd = (m + ½)λ."
+
   @spec destructive_interference?(number, number, number) :: boolean
   def destructive_interference?(path_diff, wavelength, m \\ 0) do
-    abs(path_diff - (m + 0.5) * wavelength) < wavelength * 1.0e-9
+    abs(path_diff - (m + 0.5) * wavelength) < wavelength * @interference_tol
   end
 
   @doc "Beat frequency between two oscillators: f_beat = |f₁ − f₂|."
-  @spec beat_frequency(number, number) :: float
-  def beat_frequency(f1, f2), do: abs(f1 - f2) * 1.0
+
+  @spec beat_frequency(number, number) :: number()
+  def beat_frequency(f1, f2), do: abs(f1 - f2)
 
   # ---------------------------------------------------------------------------
   # Diffraction
@@ -148,8 +185,9 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.single_slit_minimum(1, 500.0e-9, 0.001) > 0
       true
   """
+
   @spec single_slit_minimum(number, number, number) :: float
-  def single_slit_minimum(m, wavelength, slit_width) do
+  def single_slit_minimum(m, wavelength, slit_width) when is_positive(wavelength) do
     :math.asin(m * wavelength / slit_width)
   end
 
@@ -160,8 +198,9 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.double_slit_bright(0, 500.0e-9, 5.0e-4) |> Float.round(4)
       0.0
   """
+
   @spec double_slit_bright(number, number, number) :: float
-  def double_slit_bright(m, wavelength, slit_sep) do
+  def double_slit_bright(m, wavelength, slit_sep) when is_positive(wavelength) do
     :math.asin(m * wavelength / slit_sep)
   end
 
@@ -175,8 +214,9 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.grating_angle(0, 500.0e-9, 5.0e-4) |> Float.round(4)
       0.0
   """
+
   @spec grating_angle(number, number, number) :: float
-  def grating_angle(m, wavelength, grating_sep) do
+  def grating_angle(m, wavelength, grating_sep) when is_positive(wavelength) do
     :math.asin(m * wavelength / grating_sep)
   end
 
@@ -187,7 +227,8 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.grating_resolving_power(1, 500)
       500
   """
-  @spec grating_resolving_power(number, number) :: number
+
+  @spec grating_resolving_power(number, number) :: number()
   def grating_resolving_power(m, n), do: m * n
 
   # ---------------------------------------------------------------------------
@@ -212,6 +253,7 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.doppler(440.0, 0.0, 0.0) |> Float.round(4)
       440.0
   """
+
   @spec doppler(number, number, number, number) :: float
   def doppler(f_src, v_obs, v_src, v_sound \\ @speed_of_sound) do
     f_src * (v_sound + v_obs) / (v_sound - v_src)
@@ -226,6 +268,7 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.relativistic_doppler(1.0e14, 0) |> Float.round(2)
       1.0e14
   """
+
   @spec relativistic_doppler(number, number, number) :: float
   def relativistic_doppler(f_src, v, c \\ @speed_of_light) do
     b = v / c
@@ -247,20 +290,23 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.intensity_decibels(1.0e-12) |> Float.round(4)
       0.0
   """
+
   @spec intensity_decibels(number, number) :: float
   def intensity_decibels(intensity, i0 \\ 1.0e-12) do
     10 * :math.log10(intensity / i0)
   end
 
   @doc "Sound intensity from a decibel level: I = I₀ × 10^(L/10)."
+
   @spec intensity_from_decibels(number, number) :: float
   def intensity_from_decibels(level_db, i0 \\ 1.0e-12) do
     i0 * :math.pow(10, level_db / 10)
   end
 
   @doc "Intensity ratio from amplitude ratio: I₂/I₁ = (A₂/A₁)²."
+
   @spec intensity_ratio_from_amplitude(number, number) :: float
-  def intensity_ratio_from_amplitude(a2, a1), do: (a2 / a1) ** 2 * 1.0
+  def intensity_ratio_from_amplitude(a2, a1), do: :math.pow(a2 / a1, 2)
 
   @doc """
   Specific acoustic impedance of a medium: Z = ρ v
@@ -276,8 +322,9 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.acoustic_impedance(1.225, 343.0) |> Float.round(0)
       420.0
   """
-  @spec acoustic_impedance(number, number) :: float
-  def acoustic_impedance(density, wave_speed), do: density * wave_speed
+
+  @spec acoustic_impedance(number, number) :: number()
+  def acoustic_impedance(density, wave_speed) when is_positive(density), do: density * wave_speed
 
   @doc """
   Sound power from intensity and area: P = I × A
@@ -286,7 +333,8 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.sound_power(1.0e-3, 0.1) |> Float.round(6)
       0.0001
   """
-  @spec sound_power(number, number) :: float
+
+  @spec sound_power(number, number) :: number()
   def sound_power(intensity, area), do: intensity * area
 
   # ---------------------------------------------------------------------------
@@ -300,14 +348,16 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.string_harmonic(1, 340, 0.68) |> Float.round(1)
       250.0
   """
+
   @spec string_harmonic(number, number, number) :: float
-  def string_harmonic(n, wave_speed, length) do
+  def string_harmonic(n, wave_speed, length) when is_positive(length) do
     n * wave_speed / (2 * length)
   end
 
   @doc "Harmonic frequencies of an open cylindrical pipe: fₙ = nv/(2L)."
+
   @spec open_pipe_harmonic(number, number, number) :: float
-  def open_pipe_harmonic(n, wave_speed, length) do
+  def open_pipe_harmonic(n, wave_speed, length) when is_positive(length) do
     n * wave_speed / (2 * length)
   end
 
@@ -320,8 +370,9 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.closed_pipe_harmonic(1, 340, 0.25)
       340.0
   """
+
   @spec closed_pipe_harmonic(number, number, number) :: float
-  def closed_pipe_harmonic(n, wave_speed, length) do
+  def closed_pipe_harmonic(n, wave_speed, length) when is_positive(length) do
     (2 * n - 1) * wave_speed / (4 * length)
   end
 
@@ -330,18 +381,21 @@ defmodule AstroEquations.Physics.Waves do
   # ---------------------------------------------------------------------------
 
   @doc "Phase velocity of a wave: v_ph = omega/k."
+
   @spec phase_velocity(number, number) :: float
-  def phase_velocity(omega, k), do: omega / k * 1.0
+  def phase_velocity(omega, k), do: omega / k
 
   @doc "Group velocity by finite difference: v_g = Δomega/Δk."
+
   @spec group_velocity(number, number, number, number) :: float
   def group_velocity(omega1, omega2, k1, k2) do
     (omega2 - omega1) / (k2 - k1)
   end
 
-  @doc "Checks whether phase and group velocities are equal (non-dispersive medium)."
-  @spec is_dispersionless?(number, number, number) :: boolean
-  def is_dispersionless?(v_phase, v_group, tol \\ 1.0e-9) do
+  @doc "Returns true when phase and group velocities are equal (non-dispersive medium)."
+
+  @spec dispersionless?(number, number, number) :: boolean
+  def dispersionless?(v_phase, v_group, tol \\ 1.0e-9) do
     abs(v_phase - v_group) < tol
   end
 
@@ -356,19 +410,22 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.wave_power(0.01, :math.pi(), 0.1, 340) > 0
       true
   """
+
   @spec wave_power(number, number, number, number) :: float
   def wave_power(mu, omega, amplitude, wave_speed) do
-    0.5 * mu * omega ** 2 * amplitude ** 2 * wave_speed
+    0.5 * mu * omega * omega * amplitude * amplitude * wave_speed
   end
 
   @doc "Wave intensity (power per unit area): I = P/A."
+
   @spec wave_intensity(number, number) :: float
-  def wave_intensity(power, area), do: power / area * 1.0
+  def wave_intensity(power, area), do: power / area
 
   @doc "Spherical wave intensity (inverse-square law): I = P/(4πr²)."
+
   @spec spherical_wave_intensity(number, number) :: float
-  def spherical_wave_intensity(power, radius) do
-    power / (4 * :math.pi() * radius ** 2)
+  def spherical_wave_intensity(power, radius) when is_positive(radius) do
+    power / (4 * :math.pi() * radius * radius)
   end
 
   # ---------------------------------------------------------------------------
@@ -382,22 +439,26 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.snells_law(1.0, 0.0, 1.5) |> Float.round(4)
       0.0
   """
+
   @spec snells_law(number, number, number) :: float
-  def snells_law(n1, theta1, n2) do
+  def snells_law(n1, theta1, n2) when is_positive(n1) and is_positive(n2) do
     :math.asin(n1 * :math.sin(theta1) / n2)
   end
 
   @doc "Critical angle for total internal reflection: θ_c = arcsin(n₂/n₁)."
+
   @spec critical_angle(number, number) :: float
   def critical_angle(n1, n2), do: :math.asin(n2 / n1)
 
   @doc "Refractive index of a medium: n = c/v."
+
   @spec refractive_index(number, number) :: float
   def refractive_index(wave_speed, c \\ @speed_of_light), do: c / wave_speed
 
   @doc "Malus's Law for polarised light transmitted through a polariser: I = I₀ cos²θ."
+
   @spec malus_law(number, number) :: float
-  def malus_law(i0, theta), do: i0 * :math.cos(theta) ** 2
+  def malus_law(i0, theta), do: i0 * :math.cos(:math.pow(theta, 2))
 
   @doc """
   Thin lens equation: 1/f = 1/d_o + 1/d_i — solves for image distance d_i.
@@ -413,6 +474,7 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.thin_lens_image_distance(0.1, 0.2) |> Float.round(4)
       0.2
   """
+
   @spec thin_lens_image_distance(number, number) :: float
   def thin_lens_image_distance(focal_length, object_distance) do
     1.0 / (1.0 / focal_length - 1.0 / object_distance)
@@ -427,6 +489,7 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.lens_magnification(0.2, 0.2)
       -1.0
   """
+
   @spec lens_magnification(number, number) :: float
   def lens_magnification(image_distance, object_distance) do
     -image_distance / object_distance
@@ -441,7 +504,9 @@ defmodule AstroEquations.Physics.Waves do
       iex> Waves.mirror_image_distance(0.5, 2.0) |> Float.round(4)
       0.6667
   """
+
   @spec mirror_image_distance(number, number) :: float
+
   def mirror_image_distance(focal_length, object_distance) do
     focal_length * object_distance / (object_distance - focal_length)
   end
