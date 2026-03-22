@@ -14,8 +14,22 @@ defmodule AstroEquations.Physics.Forces do
   - Terminal velocity
   - Tension and impulse / momentum
   """
+  use AstroEquations.Guards
 
-  @gravitational_constant 6.67430e-11
+  # ---------------------------------------------------------------------------
+  # Types
+  # ---------------------------------------------------------------------------
+
+  @typedoc "Force in newtons (N)."
+  @type force :: float()
+
+  @typedoc "Mass in kilograms (kg). Must be positive."
+  @type mass :: float()
+
+  @typedoc "Coefficient of friction or drag (dimensionless). Non-negative."
+  @type coefficient :: float()
+
+  @gravitational_constant 6.674_30e-11
 
   # ---------------------------------------------------------------------------
   # Newton's Laws
@@ -28,8 +42,9 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.newtons_second_law(5, 2)
       10.0
   """
-  @spec newtons_second_law(number, number) :: float
-  def newtons_second_law(mass, acceleration), do: mass * acceleration * 1.0
+
+  @spec newtons_second_law(number, number) :: number()
+  def newtons_second_law(mass, acceleration) when is_positive(mass), do: mass * acceleration
 
   @doc """
   Newton's Law of Universal Gravitation: F = G m₁ m₂ / r²
@@ -38,6 +53,7 @@ defmodule AstroEquations.Physics.Forces do
     - m1, m2: Masses (kg)
     - r:      Separation distance (m)
   """
+
   @spec gravitational_force(number, number, number) :: float
   def gravitational_force(m1, m2, r) when r > 0 do
     @gravitational_constant * m1 * m2 / :math.pow(r, 2)
@@ -50,8 +66,9 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.weight(70) |> Float.round(2)
       686.7
   """
-  @spec weight(number, number) :: float
-  def weight(mass, g \\ 9.81), do: mass * g
+
+  @spec weight(number, number) :: number()
+  def weight(mass, g \\ 9.81) when is_positive(mass), do: mass * g
 
   # ---------------------------------------------------------------------------
   # Buoyancy
@@ -64,7 +81,8 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.buoyancy(5)
       49.05
   """
-  @spec buoyancy(number, number) :: float
+
+  @spec buoyancy(number, number) :: number()
   def buoyancy(displaced_mass, gravity \\ 9.81), do: displaced_mass * gravity
 
   @doc """
@@ -74,8 +92,10 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.buoyancy_from_density(1000, 0.005)
       49.05
   """
-  @spec buoyancy_from_density(number, number, number) :: float
-  def buoyancy_from_density(density, volume, gravity \\ 9.81), do: density * volume * gravity
+
+  @spec buoyancy_from_density(number, number, number) :: number()
+  def buoyancy_from_density(density, volume, gravity \\ 9.81) when is_positive(density),
+    do: density * volume * gravity
 
   # ---------------------------------------------------------------------------
   # Friction
@@ -88,7 +108,8 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.kinetic_friction(0.3, 10)
       3.0
   """
-  @spec kinetic_friction(number, number) :: float
+
+  @spec kinetic_friction(number, number) :: number()
   def kinetic_friction(coefficient, normal_force), do: coefficient * normal_force
 
   @doc """
@@ -98,7 +119,8 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.static_friction(0.4, 10)
       4.0
   """
-  @spec static_friction(number, number) :: float
+
+  @spec static_friction(number, number) :: number()
   def static_friction(coefficient, normal_force), do: coefficient * normal_force
 
   @doc """
@@ -108,7 +130,8 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.rolling_friction(0.01, 1000)
       10.0
   """
-  @spec rolling_friction(number, number) :: float
+
+  @spec rolling_friction(number, number) :: number()
   def rolling_friction(coefficient, normal_force), do: coefficient * normal_force
 
   # ---------------------------------------------------------------------------
@@ -122,7 +145,8 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.spring_force(10, 0.5)
       -5.0
   """
-  @spec spring_force(number, number) :: float
+
+  @spec spring_force(number, number) :: number()
   def spring_force(k, x), do: -k * x
 
   # ---------------------------------------------------------------------------
@@ -136,8 +160,9 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.centripetal_force(2, 5, 10)
       5.0
   """
+
   @spec centripetal_force(number, number, number) :: float
-  def centripetal_force(mass, velocity, radius) do
+  def centripetal_force(mass, velocity, radius) when is_positive(mass) and is_positive(radius) do
     mass * :math.pow(velocity, 2) / radius
   end
 
@@ -148,8 +173,10 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.centripetal_acceleration(5, 10)
       2.5
   """
+
   @spec centripetal_acceleration(number, number) :: float
-  def centripetal_acceleration(velocity, radius), do: :math.pow(velocity, 2) / radius
+  def centripetal_acceleration(velocity, radius) when is_positive(radius),
+    do: :math.pow(velocity, 2) / radius
 
   @doc """
   Centripetal force using angular velocity: F_c = m omega² r
@@ -158,8 +185,9 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.centripetal_force_angular(1000, 2, 50)
       200000.0
   """
+
   @spec centripetal_force_angular(number, number, number) :: float
-  def centripetal_force_angular(mass, angular_velocity, radius) do
+  def centripetal_force_angular(mass, angular_velocity, radius) when is_positive(mass) do
     mass * :math.pow(angular_velocity, 2) * radius
   end
 
@@ -176,7 +204,8 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.stokes_drag(0.5, 3.0)
       1.5
   """
-  @spec stokes_drag(number, number) :: float
+
+  @spec stokes_drag(number, number) :: number()
   def stokes_drag(drag_coefficient, velocity), do: drag_coefficient * velocity
 
   @doc """
@@ -186,8 +215,9 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.stokes_drag_sphere(1.0e-3, 0.001, 1.0) > 0
       true
   """
+
   @spec stokes_drag_sphere(number, number, number) :: float
-  def stokes_drag_sphere(eta, radius, velocity) do
+  def stokes_drag_sphere(eta, radius, velocity) when is_positive(radius) do
     6 * :math.pi() * eta * radius * velocity
   end
 
@@ -200,6 +230,7 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.quadratic_drag(0.47, 1.225, 0.04, 30) > 0
       true
   """
+
   @spec quadratic_drag(number, number, number, number) :: float
   def quadratic_drag(drag_coeff, fluid_density, area, velocity) do
     0.5 * drag_coeff * fluid_density * area * :math.pow(velocity, 2)
@@ -212,8 +243,12 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.terminal_velocity(75, 0.47, 1.225, 0.6) > 0
       true
   """
+
   @spec terminal_velocity(number, number, number, number, number) :: float
-  def terminal_velocity(mass, drag_coeff, fluid_density, area, g \\ 9.81) do
+  def terminal_velocity(mass, drag_coeff, fluid_density, area, g \\ 9.81)
+      when is_positive(mass)
+      when is_positive(mass) and is_positive(drag_coeff) and is_positive(fluid_density) and
+             is_positive(area) do
     :math.sqrt(2 * mass * g / (drag_coeff * fluid_density * area))
   end
 
@@ -228,8 +263,10 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.hydrostatic_pressure(1000, 10) |> Float.round(1)
       98100.0
   """
-  @spec hydrostatic_pressure(number, number, number) :: float
-  def hydrostatic_pressure(density, height, g \\ 9.81), do: density * g * height
+
+  @spec hydrostatic_pressure(number, number, number) :: number()
+  def hydrostatic_pressure(density, height, g \\ 9.81) when is_positive(density),
+    do: density * g * height
 
   @doc """
   Pressure from force and area: P = F / A
@@ -238,6 +275,7 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.pressure(100, 0.01)
       10000.0
   """
+
   @spec pressure(number, number) :: float
   def pressure(force, area), do: force / area
 
@@ -248,8 +286,9 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.normal_force_incline(10, 0) |> Float.round(2)
       98.1
   """
+
   @spec normal_force_incline(number, number, number) :: float
-  def normal_force_incline(mass, theta, g \\ 9.81) do
+  def normal_force_incline(mass, theta, g \\ 9.81) when is_positive(mass) do
     mass * g * :math.cos(theta)
   end
 
@@ -260,8 +299,9 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.incline_force_parallel(10, :math.pi()/6) |> Float.round(2)
       49.05
   """
+
   @spec incline_force_parallel(number, number, number) :: float
-  def incline_force_parallel(mass, theta, g \\ 9.81) do
+  def incline_force_parallel(mass, theta, g \\ 9.81) when is_positive(mass) do
     mass * g * :math.sin(theta)
   end
 
@@ -276,8 +316,9 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.impulse(10, 5)
       50.0
   """
-  @spec impulse(number, number) :: float
-  def impulse(force, time), do: force * time * 1.0
+
+  @spec impulse(number, number) :: number()
+  def impulse(force, time), do: force * time
 
   @doc """
   Linear momentum: p = m v
@@ -286,6 +327,8 @@ defmodule AstroEquations.Physics.Forces do
       iex> Forces.momentum(10, 5)
       50.0
   """
-  @spec momentum(number, number) :: float
-  def momentum(mass, velocity), do: mass * velocity * 1.0
+
+  @spec momentum(number, number) :: number()
+
+  def momentum(mass, velocity) when is_positive(mass), do: mass * velocity
 end
