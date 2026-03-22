@@ -15,14 +15,45 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
   - Accretion luminosity and Bondi radius
   """
 
+  import AstroEquations.Guards
+
+  # ---------------------------------------------------------------------------
+  # Guards
+  # ---------------------------------------------------------------------------
+
+  @doc "Guard: checks that `x` is a non-negative real number (≥ 0)."
+  defguard is_non_negative(x) when is_number(x) and x >= 0
+
+  @doc "Guard: checks that `x` is a finite real number (integer or float)."
+  defguard is_real(x) when is_integer(x) or is_float(x)
+
+  # ---------------------------------------------------------------------------
+  # Types
+  # ---------------------------------------------------------------------------
+
+  @typedoc "Mass in kilograms (kg). Must be positive."
+  @type mass :: float()
+
+  @typedoc "Radius in metres (m). Must be positive."
+  @type radius :: float()
+
+  @typedoc "Hawking temperature in kelvin (K). Must be positive."
+  @type temperature :: float()
+
+  @typedoc "Dimensionless spin parameter a* ∈ [0, 1]."
+  @type spin_param :: float()
+
+  @typedoc "Entropy in J/K."
+  @type entropy :: float()
+
   # m³ kg⁻¹ s⁻²
-  @gravitational_constant 6.67430e-11
+  @gravitational_constant 6.674_30e-11
   # m/s
-  @speed_of_light 2.99792458e8
+  @speed_of_light 2.997_924_58e8
   # J·s (reduced Planck)
-  @hbar 1.054571817e-34
+  @hbar 1.054_571_817e-34
   # J/K
-  @boltzmann 1.380649e-23
+  @boltzmann 1.380_649e-23
   # kg
   @solar_mass 1.989e30
 
@@ -45,8 +76,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
       iex> BlackHole.schwarzschild_radius(1.989e30) |> Float.round(2)
       2953.25
   """
+
   @spec schwarzschild_radius(number) :: float
-  def schwarzschild_radius(mass) do
+  def schwarzschild_radius(mass) when is_positive(mass) do
     2 * @gravitational_constant * mass / :math.pow(@speed_of_light, 2)
   end
 
@@ -63,8 +95,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
       iex> BlackHole.schwarzschild_radius_solar(1) |> Float.round(2)
       2953.25
   """
+
   @spec schwarzschild_radius_solar(number) :: float
-  def schwarzschild_radius_solar(solar_masses) do
+  def schwarzschild_radius_solar(solar_masses) when is_positive(solar_masses) do
     schwarzschild_radius(solar_masses * @solar_mass)
   end
 
@@ -89,8 +122,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
       iex> BlackHole.hawking_temperature(1.989e30) > 0
       true
   """
+
   @spec hawking_temperature(number) :: float
-  def hawking_temperature(mass) do
+  def hawking_temperature(mass) when is_positive(mass) do
     @hbar * :math.pow(@speed_of_light, 3) /
       (8 * :math.pi() * @gravitational_constant * mass * @boltzmann)
   end
@@ -110,8 +144,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
       iex> BlackHole.evaporation_time(1.0e10) > 0
       true
   """
+
   @spec evaporation_time(number) :: float
-  def evaporation_time(mass) do
+  def evaporation_time(mass) when is_positive(mass) do
     5120 * :math.pi() * :math.pow(@gravitational_constant, 2) * :math.pow(mass, 3) /
       (@hbar * :math.pow(@speed_of_light, 4))
   end
@@ -132,6 +167,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
       iex> BlackHole.min_surviving_pbh_mass(4.35e17) > 0
       true
   """
+
   @spec min_surviving_pbh_mass(number) :: float
   def min_surviving_pbh_mass(time) do
     :math.pow(
@@ -156,8 +192,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
       iex> BlackHole.photon_sphere_radius(1.989e30) |> Float.round(2)
       4429.88
   """
+
   @spec photon_sphere_radius(number) :: float
-  def photon_sphere_radius(mass) do
+  def photon_sphere_radius(mass) when is_positive(mass) do
     3 * @gravitational_constant * mass / :math.pow(@speed_of_light, 2)
   end
 
@@ -172,8 +209,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
       iex> BlackHole.isco_radius(1.989e30) |> Float.round(2)
       8859.75
   """
+
   @spec isco_radius(number) :: float
-  def isco_radius(mass) do
+  def isco_radius(mass) when is_positive(mass) do
     6 * @gravitational_constant * mass / :math.pow(@speed_of_light, 2)
   end
 
@@ -201,8 +239,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
       iex> BlackHole.kerr_isco_radius(1.989e30, 0.0) |> Float.round(2)
       8859.75
   """
+
   @spec kerr_isco_radius(number, number, boolean) :: float
-  def kerr_isco_radius(mass, spin_param, prograde \\ true) do
+  def kerr_isco_radius(mass, spin_param, prograde \\ true) when is_positive(mass) do
     r_g = @gravitational_constant * mass / :math.pow(@speed_of_light, 2)
     a = spin_param
 
@@ -234,8 +273,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
       iex> BlackHole.bekenstein_hawking_entropy(1.989e30) > 0
       true
   """
+
   @spec bekenstein_hawking_entropy(number) :: float
-  def bekenstein_hawking_entropy(mass) do
+  def bekenstein_hawking_entropy(mass) when is_positive(mass) do
     r_s = schwarzschild_radius(mass)
     area = 4 * :math.pi() * :math.pow(r_s, 2)
     @boltzmann * :math.pow(@speed_of_light, 3) * area / (4 * @gravitational_constant * @hbar)
@@ -259,8 +299,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
       iex> BlackHole.kerr_spin_parameter(1.989e30, 1.0e47) |> Float.round(4)
       0.1195
   """
+
   @spec kerr_spin_parameter(number, number) :: float
-  def kerr_spin_parameter(mass, angular_momentum) do
+  def kerr_spin_parameter(mass, angular_momentum) when is_positive(mass) do
     a_star =
       angular_momentum * @speed_of_light /
         (@gravitational_constant * :math.pow(mass, 2))
@@ -291,6 +332,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
       iex> BlackHole.ergosphere_radius(1.989e30, 0.5) |> Float.round(2)
       2953.25
   """
+
   @spec ergosphere_radius(number, number, number) :: float
   def ergosphere_radius(mass, spin_param, theta \\ :math.pi() / 2) do
     r_g = @gravitational_constant * mass / :math.pow(@speed_of_light, 2)
@@ -318,8 +360,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
       iex> BlackHole.bh_shadow_radius(1.989e30) > BlackHole.photon_sphere_radius(1.989e30)
       true
   """
+
   @spec bh_shadow_radius(number) :: float
-  def bh_shadow_radius(mass) do
+  def bh_shadow_radius(mass) when is_positive(mass) do
     3 * :math.sqrt(3) * @gravitational_constant * mass / :math.pow(@speed_of_light, 2)
   end
 
@@ -343,6 +386,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
       iex> BlackHole.accretion_luminosity(1.0e20, 0.1) > 0
       true
   """
+
   @spec accretion_luminosity(number, number) :: float
   def accretion_luminosity(accretion_rate, efficiency \\ 0.1) do
     efficiency * accretion_rate * :math.pow(@speed_of_light, 2)
@@ -365,8 +409,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
       iex> BlackHole.bondi_radius(1.989e30, 1.0e5) > 0
       true
   """
+
   @spec bondi_radius(number, number) :: float
-  def bondi_radius(mass, v_inf) do
+  def bondi_radius(mass, v_inf) when is_positive(mass) do
     2 * @gravitational_constant * mass / (v_inf * v_inf)
   end
 
@@ -392,8 +437,10 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.BlackHole do
       iex> BlackHole.gravitational_time_dilation(1.989e30, 6.957e8) |> Float.round(6)
       0.999999
   """
+
   @spec gravitational_time_dilation(number, number) :: float
-  def gravitational_time_dilation(mass, radius) do
+
+  def gravitational_time_dilation(mass, radius) when is_positive(mass) and is_positive(radius) do
     r_s = schwarzschild_radius(mass)
     :math.sqrt(max(1 - r_s / radius, 0.0))
   end
