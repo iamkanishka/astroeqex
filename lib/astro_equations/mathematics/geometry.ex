@@ -12,6 +12,23 @@ defmodule AstroEquations.Mathematics.Geometry do
   - Orbital geometry helpers (semi-latus rectum, eccentric/true anomaly)
   - Gravitational lensing geometry (Einstein radius)
   """
+  use AstroEquations.Guards
+
+  # ---------------------------------------------------------------------------
+  # Types
+  # ---------------------------------------------------------------------------
+
+  @typedoc "Angle in radians."
+  @type angle :: float()
+
+  @typedoc "Angular separation in radians. Non-negative."
+  @type separation :: float()
+
+  @typedoc "Orbital eccentricity e ∈ [0, ∞). 0 = circular, 0–1 = ellipse."
+  @type eccentricity :: float()
+
+  @typedoc "Semi-major axis in any consistent length unit. Must be positive."
+  @type semi_major_axis :: float()
 
   @pi :math.pi()
   @deg_to_rad @pi / 180.0
@@ -30,6 +47,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.deg_to_rad(180) |> Float.round(4)
       3.1416
   """
+
   @spec deg_to_rad(number) :: float
   def deg_to_rad(deg), do: deg * @deg_to_rad
 
@@ -40,6 +58,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.rad_to_deg(:math.pi()) |> Float.round(4)
       180.0
   """
+
   @spec rad_to_deg(number) :: float
   def rad_to_deg(rad), do: rad * @rad_to_deg
 
@@ -50,6 +69,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.hours_to_deg(12)
       180.0
   """
+
   @spec hours_to_deg(number) :: float
   def hours_to_deg(h), do: h * 15.0
 
@@ -60,6 +80,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.deg_to_hours(180)
       12.0
   """
+
   @spec deg_to_hours(number) :: float
   def deg_to_hours(deg), do: deg / 15.0
 
@@ -70,6 +91,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.arcsec_to_rad(206_265.0) |> Float.round(4)
       1.0
   """
+
   @spec arcsec_to_rad(number) :: float
   def arcsec_to_rad(arcsec), do: arcsec / @arcsec_per_rad
 
@@ -80,6 +102,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.rad_to_arcsec(1.0) |> Float.round(0)
       206265.0
   """
+
   @spec rad_to_arcsec(number) :: float
   def rad_to_arcsec(rad), do: rad * @arcsec_per_rad
 
@@ -101,6 +124,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.angular_separation(0, 0, :math.pi/2, 0) |> Float.round(6)
       1.570796
   """
+
   @spec angular_separation(number, number, number, number) :: float
   def angular_separation(ra1, dec1, ra2, dec2) do
     d_ra = (ra2 - ra1) / 2
@@ -127,6 +151,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.angular_separation_deg(0.0, 0.0, 90.0, 0.0) |> Float.round(4)
       90.0
   """
+
   @spec angular_separation_deg(number, number, number, number) :: float
   def angular_separation_deg(ra1_deg, dec1_deg, ra2_deg, dec2_deg) do
     angular_separation(
@@ -152,6 +177,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.position_angle(0.0, 0.0, 0.1, 0.0) >= 0
       true
   """
+
   @spec position_angle(number, number, number, number) :: float
   def position_angle(ra1, dec1, ra2, dec2) do
     d_ra = ra2 - ra1
@@ -182,6 +208,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.solid_angle_cone(0) |> Float.round(4)
       0.0
   """
+
   @spec solid_angle_cone(number) :: float
   def solid_angle_cone(theta), do: 2 * @pi * (1 - :math.cos(theta))
 
@@ -200,6 +227,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.solid_angle_rectangle(0.01, 0.01, 0) |> Float.round(6)
       0.0001
   """
+
   @spec solid_angle_rectangle(number, number, number) :: float
   def solid_angle_rectangle(d_alpha, d_delta, delta), do: d_alpha * d_delta * :math.cos(delta)
 
@@ -210,8 +238,9 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.sphere_solid_angle() |> Float.round(4)
       12.5664
   """
-  @spec sphere_solid_angle() :: float
-  def sphere_solid_angle(), do: 4 * @pi
+
+  @spec sphere_solid_angle :: float
+  def sphere_solid_angle, do: 4 * @pi
 
   # ---------------------------------------------------------------------------
   # Orbital Geometry
@@ -228,8 +257,9 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.semi_latus_rectum(1.0, 0.0)
       1.0
   """
-  @spec semi_latus_rectum(number, number) :: float
-  def semi_latus_rectum(a, e), do: a * (1 - e * e)
+
+  @spec semi_latus_rectum(number, number) :: number()
+  def semi_latus_rectum(a, e) when is_positive(a) and is_non_negative(e), do: a * (1 - e * e)
 
   @doc """
   Orbital radius at true anomaly ν: r = l/(1 + e cos ν).
@@ -246,6 +276,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.orbital_radius(1.0, 0.5, 0) |> Float.round(4)
       0.5
   """
+
   @spec orbital_radius(number, number, number) :: float
   def orbital_radius(a, e, nu) do
     l = semi_latus_rectum(a, e)
@@ -259,8 +290,9 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.periapsis(1.0, 0.5)
       0.5
   """
-  @spec periapsis(number, number) :: float
-  def periapsis(a, e), do: a * (1 - e)
+
+  @spec periapsis(number, number) :: number()
+  def periapsis(a, e) when is_positive(a) and is_non_negative(e), do: a * (1 - e)
 
   @doc """
   Apoapsis distance: r_a = a(1 + e).
@@ -269,8 +301,9 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.apoapsis(1.0, 0.5)
       1.5
   """
-  @spec apoapsis(number, number) :: float
-  def apoapsis(a, e), do: a * (1 + e)
+
+  @spec apoapsis(number, number) :: number()
+  def apoapsis(a, e) when is_positive(a) and is_non_negative(e), do: a * (1 + e)
 
   @doc """
   Orbital eccentricity from periapsis and apoapsis distances: e = (r_a - r_p)/(r_a + r_p).
@@ -279,6 +312,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.eccentricity_from_apsides(0.5, 1.5) |> Float.round(4)
       0.5
   """
+
   @spec eccentricity_from_apsides(number, number) :: float
   def eccentricity_from_apsides(r_p, r_a), do: (r_a - r_p) / (r_a + r_p)
 
@@ -299,6 +333,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.eccentric_anomaly(0.0, 0.5) |> Float.round(4)
       0.0
   """
+
   @spec eccentric_anomaly(number, number, number) :: float
   def eccentric_anomaly(m, e, tol \\ 1.0e-10) do
     do_kepler(m, e, m, tol)
@@ -323,6 +358,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.true_anomaly(0.0, 0.5) |> Float.round(4)
       0.0
   """
+
   @spec true_anomaly(number, number) :: float
   def true_anomaly(big_e, e) do
     half_nu =
@@ -354,10 +390,12 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.einstein_radius(1.989e30, 1.0e22, 2.0e22, 1.0e22) > 0
       true
   """
+
   @spec einstein_radius(number, number, number, number) :: float
-  def einstein_radius(mass, d_l, d_s, d_ls) do
+  def einstein_radius(mass, d_l, d_s, d_ls)
+      when is_positive(mass) and is_positive(d_l) and is_positive(d_s) and is_positive(d_ls) do
     g = 6.674e-11
-    c = 2.99792458e8
+    c = 2.997_924_58e8
     :math.sqrt(4 * g * mass * d_ls / (:math.pow(c, 2) * d_l * d_s))
   end
 
@@ -374,6 +412,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.microlensing_magnification(1.0) |> Float.round(3)
       1.342
   """
+
   @spec microlensing_magnification(number) :: float
   def microlensing_magnification(u) do
     u2 = u * u
@@ -393,8 +432,10 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.parallax_to_parsecs(0.1) |> Float.round(1)
       10.0
   """
+
   @spec parallax_to_parsecs(number) :: float
-  def parallax_to_parsecs(parallax_arcsec), do: 1.0 / parallax_arcsec
+  def parallax_to_parsecs(parallax_arcsec) when is_positive(parallax_arcsec),
+    do: 1.0 / parallax_arcsec
 
   @doc """
   Proper motion magnitude from RA and Dec components.
@@ -412,6 +453,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> Geometry.proper_motion_magnitude(3.0, 4.0) |> Float.round(1)
       5.0
   """
+
   @spec proper_motion_magnitude(number, number) :: float
   def proper_motion_magnitude(mu_alpha_star, mu_delta) do
     :math.sqrt(mu_alpha_star * mu_alpha_star + mu_delta * mu_delta)
@@ -435,6 +477,7 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> elem(Geometry.equatorial_to_cartesian(0.0, 0.0), 0) |> Float.round(4)
       1.0
   """
+
   @spec equatorial_to_cartesian(number, number) :: {float, float, float}
   def equatorial_to_cartesian(ra, dec) do
     {
@@ -457,7 +500,9 @@ defmodule AstroEquations.Mathematics.Geometry do
       iex> elem(Geometry.cartesian_to_equatorial(1.0, 0.0, 0.0), 0) |> Float.round(4)
       0.0
   """
+
   @spec cartesian_to_equatorial(number, number, number) :: {float, float}
+
   def cartesian_to_equatorial(x, y, z) do
     dec = :math.asin(z)
     ra = :math.fmod(:math.atan2(y, x) + 2 * @pi, 2 * @pi)
