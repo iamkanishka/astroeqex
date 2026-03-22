@@ -6,7 +6,7 @@ defmodule AstroEquations.MixProject do
 
   def project do
     [
-      app: :astroequations,
+      app: :astro_equations,
       version: @version,
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
