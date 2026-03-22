@@ -67,7 +67,7 @@ defmodule AstroEquations.MixProject do
 
   defp package do
     [
-      name: "astroequations",
+      name: "astro_equations",
       licenses: ["Apache-2.0"],
       links: %{
         "GitHub" => @source_url,
