@@ -14,17 +14,34 @@ defmodule AstroEquations.Mathematics.Trigonometry do
   - Approximate solar declination
   """
 
+  # ---------------------------------------------------------------------------
+  # Types
+  # ---------------------------------------------------------------------------
+
+  @typedoc "Angle in radians."
+  @type angle :: float()
+
+  @typedoc "Right ascension in radians [0, 2π)."
+  @type right_ascension :: float()
+
+  @typedoc "Declination in radians (−π/2 to π/2)."
+  @type declination :: float()
+
+  @typedoc "Julian Date (continuous count of days from epoch)."
+  @type julian_date :: float()
+
   @pi :math.pi()
   @deg_to_rad @pi / 180.0
-  @rad_to_deg 180.0 / @pi
+  # IAU J2000 galactic coordinate pole constants
+  # RA of north galactic pole (rad)
+  @alpha_ngp 3.366_032_942_76
+  # Dec of north galactic pole (rad)
+  @delta_ngp 0.473_477_222_9
+  # l of north celestial pole (rad)
+  @l_ncp 2.145_568_156_1
 
-  @doc "Degrees → radians"
-  @spec to_rad(number) :: float
-  def to_rad(deg), do: deg * @deg_to_rad
+  defp to_rad(deg), do: deg * @deg_to_rad
 
-  @doc "Radians → degrees"
-  @spec to_deg(number) :: float
-  def to_deg(rad), do: rad * @rad_to_deg
   # ---------------------------------------------------------------------------
   # Spherical Trigonometry
   # ---------------------------------------------------------------------------
@@ -38,6 +55,7 @@ defmodule AstroEquations.Mathematics.Trigonometry do
       iex> Trigonometry.spherical_law_of_cosines(:math.pi()/3, :math.pi()/3, :math.pi()/3) |> Float.round(4)
       1.0472
   """
+
   @spec spherical_law_of_cosines(number, number, number) :: float
   def spherical_law_of_cosines(a, b, big_c) do
     :math.acos(
@@ -55,6 +73,7 @@ defmodule AstroEquations.Mathematics.Trigonometry do
       iex> Trigonometry.spherical_law_of_sines(:math.pi()/3, :math.pi()/3, :math.pi()/4) |> Float.round(4)
       0.6847
   """
+
   @spec spherical_law_of_sines(number, number, number) :: float
   def spherical_law_of_sines(big_b, b, a) do
     :math.asin(:math.sin(big_b) * :math.sin(a) / :math.sin(b))
@@ -79,8 +98,10 @@ defmodule AstroEquations.Mathematics.Trigonometry do
       iex> Trigonometry.altitude(0.0, 0.0, 0.0) |> Float.round(4)
       1.5708
   """
+
   @spec altitude(number, number, number) :: float
-  def altitude(dec, latitude, hour_angle) do
+  def altitude(dec, latitude, hour_angle)
+      when is_number(dec) and is_number(latitude) and is_number(hour_angle) do
     :math.asin(
       :math.sin(dec) * :math.sin(latitude) +
         :math.cos(dec) * :math.cos(latitude) * :math.cos(hour_angle)
@@ -97,6 +118,7 @@ defmodule AstroEquations.Mathematics.Trigonometry do
       iex> Trigonometry.azimuth(0.3, 0.8, 1.0) >= 0
       true
   """
+
   @spec azimuth(number, number, number) :: float
   def azimuth(dec, latitude, hour_angle) do
     az =
@@ -115,6 +137,7 @@ defmodule AstroEquations.Mathematics.Trigonometry do
       iex> Trigonometry.hour_angle(1.5, 1.5) |> Float.round(4)
       0.0
   """
+
   @spec hour_angle(number, number) :: float
   def hour_angle(lst, ra) do
     h = :math.fmod(lst - ra, 2 * @pi)
@@ -130,6 +153,7 @@ defmodule AstroEquations.Mathematics.Trigonometry do
       iex> is_float(Trigonometry.parallactic_angle(0.5, 0.3, 0.5))
       true
   """
+
   @spec parallactic_angle(number, number, number) :: float
   def parallactic_angle(latitude, dec, hour_angle) do
     :math.atan2(
@@ -148,6 +172,7 @@ defmodule AstroEquations.Mathematics.Trigonometry do
   ## Returns
     GMST in radians [0, 2π)
   """
+
   @spec gmst(number) :: float
   def gmst(jd) do
     t = (jd - 2_451_545.0) / 36_525.0
@@ -175,6 +200,7 @@ defmodule AstroEquations.Mathematics.Trigonometry do
       iex> Trigonometry.local_sidereal_time(2_451_545.0, 0.0) >= 0
       true
   """
+
   @spec local_sidereal_time(number, number) :: float
   def local_sidereal_time(jd, longitude) do
     :math.fmod(gmst(jd) + longitude + 2 * @pi, 2 * @pi)
@@ -193,6 +219,7 @@ defmodule AstroEquations.Mathematics.Trigonometry do
   ## Returns
     Hour angle H0 (radians), or nil if circumpolar / never rises
   """
+
   @spec sunrise_hour_angle(number, number, number) :: float | nil
   def sunrise_hour_angle(latitude, dec, h0 \\ -0.01454) do
     cos_h0 =
@@ -224,8 +251,9 @@ defmodule AstroEquations.Mathematics.Trigonometry do
       iex> Trigonometry.atmospheric_refraction(45.0) |> Float.round(3)
       0.979
   """
+
   @spec atmospheric_refraction(number) :: float
-  def atmospheric_refraction(altitude_deg) do
+  def atmospheric_refraction(altitude_deg) when is_number(altitude_deg) do
     1.02 / :math.tan(to_rad(altitude_deg + 10.3 / (altitude_deg + 5.11)))
   end
 
@@ -248,21 +276,20 @@ defmodule AstroEquations.Mathematics.Trigonometry do
       iex> Trigonometry.equatorial_to_ecliptic(1.5, 0.3) |> elem(0) |> is_float()
       true
   """
+
   @spec equatorial_to_ecliptic(number, number, number) :: {float, float}
-  def equatorial_to_ecliptic(ra, dec, epsilon \\ 0.40909260059) do
-    sin_beta =
-      :math.sin(dec) * :math.cos(epsilon) -
-        :math.cos(dec) * :math.sin(epsilon) * :math.sin(ra)
-
+  def equatorial_to_ecliptic(ra, dec, epsilon \\ 0.409_092_600_59) do
+    {sin_beta, lambda_raw} = ecliptic_components(ra, dec, epsilon)
     beta = :math.asin(sin_beta)
+    {:math.fmod(lambda_raw + 2 * @pi, 2 * @pi), beta}
+  end
 
-    lambda =
-      :math.atan2(
-        :math.sin(ra) * :math.cos(epsilon) + :math.tan(dec) * :math.sin(epsilon),
-        :math.cos(ra)
-      )
-
-    {:math.fmod(lambda + 2 * @pi, 2 * @pi), beta}
+  defp ecliptic_components(ra, dec, epsilon) do
+    cos_eps = :math.cos(epsilon)
+    sin_eps = :math.sin(epsilon)
+    sin_beta = :math.sin(dec) * cos_eps - :math.cos(dec) * sin_eps * :math.sin(ra)
+    lambda = :math.atan2(:math.sin(ra) * cos_eps + :math.tan(dec) * sin_eps, :math.cos(ra))
+    {sin_beta, lambda}
   end
 
   @doc """
@@ -275,11 +302,12 @@ defmodule AstroEquations.Mathematics.Trigonometry do
       iex> Trigonometry.equatorial_to_galactic(1.5, 0.3) |> elem(0) |> is_float()
       true
   """
+
   @spec equatorial_to_galactic(number, number) :: {float, float}
   def equatorial_to_galactic(ra, dec) do
-    alpha_ngp = to_rad(192.859508)
-    delta_ngp = to_rad(27.128336)
-    l_ncp = to_rad(122.932)
+    alpha_ngp = @alpha_ngp
+    delta_ngp = @delta_ngp
+    l_ncp = @l_ncp
 
     sin_b =
       :math.sin(dec) * :math.sin(delta_ngp) +
@@ -309,11 +337,12 @@ defmodule AstroEquations.Mathematics.Trigonometry do
       iex> Trigonometry.galactic_to_equatorial(0.0, 0.0) |> elem(0) |> is_float()
       true
   """
+
   @spec galactic_to_equatorial(number, number) :: {float, float}
   def galactic_to_equatorial(l, b) do
-    alpha_ngp = to_rad(192.859508)
-    delta_ngp = to_rad(27.128336)
-    l_ncp = to_rad(122.932)
+    alpha_ngp = @alpha_ngp
+    delta_ngp = @delta_ngp
+    l_ncp = @l_ncp
 
     sin_dec =
       :math.sin(b) * :math.sin(delta_ngp) +
@@ -350,7 +379,9 @@ defmodule AstroEquations.Mathematics.Trigonometry do
       iex> Trigonometry.solar_declination(172) |> Float.round(3)
       0.409
   """
+
   @spec solar_declination(number) :: float
+
   def solar_declination(day_of_year) do
     to_rad(-23.45 * :math.cos(to_rad(360.0 / 365.0 * (day_of_year + 10))))
   end
