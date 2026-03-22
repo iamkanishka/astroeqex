@@ -23,13 +23,33 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
 
   Solar units (M☉, L☉, R☉) are used where stated.
   """
+  use AstroEquations.Guards
+
+  # ---------------------------------------------------------------------------
+  # Types
+  # ---------------------------------------------------------------------------
+
+  @typedoc "Stellar mass in solar masses (M☉). Must be positive."
+  @type solar_mass_unit :: float()
+
+  @typedoc "Stellar luminosity in solar luminosities (L☉). Must be positive."
+  @type solar_lum_unit :: float()
+
+  @typedoc "Temperature in kelvin (K). Must be positive."
+  @type temperature :: float()
+
+  @typedoc "Stellar radius in solar radii (R☉). Must be positive."
+  @type solar_radius_unit :: float()
+
+  @typedoc "Timescale in years (yr) or seconds (s) — see function doc."
+  @type timescale :: float()
 
   # m³ kg⁻¹ s⁻²
-  @gravitational_constant 6.67430e-11
+  @gravitational_constant 6.674_30e-11
   # J m⁻³ K⁻⁴
-  @radiation_constant 7.565723e-16
+  @radiation_constant 7.565_723e-16
   # m/s
-  @speed_of_light 2.99792458e8
+  @speed_of_light 2.997_924_58e8
   # kg
   @solar_mass 1.989e30
   # m
@@ -37,21 +57,19 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
   # W
   @solar_luminosity 3.828e26
   # kg
-  @proton_mass 1.6726219e-27
+  @proton_mass 1.672_621_9e-27
   # m²
-  @thomson_cross_section 6.6524587e-29
-  # J·s
-  @hbar 1.054571817e-34
+  @thomson_cross_section 6.652_458_7e-29
   # J/K
-  @boltzmann 1.380649e-23
+  @boltzmann 1.380_649e-23
   # W m⁻² K⁻⁴
-  @stefan_boltzmann 5.670374419e-8
+  @stefan_boltzmann 5.670_374_419e-8
   # m·K
-  @wien_b 2.897771955e-3
+  @wien_b 2.897_771_955e-3
   # typical accretion efficiency
   @efficiency 0.1
   # s/yr
-  @seconds_per_year 3.15576e7
+  @seconds_per_year 3.155_76e7
 
   # ---------------------------------------------------------------------------
   # Equations of Stellar Structure
@@ -72,8 +90,10 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.hydrostatic_equilibrium(1.989e30, 1.408e3, 6.957e8) |> Float.round(0)
       -34446.0
   """
+
   @spec hydrostatic_equilibrium(number, number, number) :: float
-  def hydrostatic_equilibrium(mass_interior, density, radius) do
+  def hydrostatic_equilibrium(mass_interior, density, radius)
+      when is_positive(mass_interior) and is_positive(density) and is_positive(radius) do
     -@gravitational_constant * mass_interior * density / :math.pow(radius, 2)
   end
 
@@ -87,8 +107,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.mass_conservation(1408.0, 6.957e8) > 0
       true
   """
+
   @spec mass_conservation(number, number) :: float
-  def mass_conservation(density, radius) do
+  def mass_conservation(density, radius) when is_positive(density) and is_positive(radius) do
     4 * :math.pi() * :math.pow(radius, 2) * density
   end
 
@@ -107,8 +128,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.energy_equation(1408.0, 1.934e-7, 6.957e8) > 0
       true
   """
+
   @spec energy_equation(number, number, number) :: float
-  def energy_equation(density, energy_gen, radius) do
+  def energy_equation(density, energy_gen, radius) when is_positive(density) do
     4 * :math.pi() * :math.pow(radius, 2) * density * energy_gen
   end
 
@@ -131,8 +153,10 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.radiative_transport(0.2, 1408, 5778, 3.828e26, 6.957e8) < 0
       true
   """
+
   @spec radiative_transport(number, number, number, number, number) :: float
-  def radiative_transport(opacity, density, temperature, luminosity, radius) do
+  def radiative_transport(opacity, density, temperature, luminosity, radius)
+      when is_positive(density) do
     numerator = 3 * opacity * density * luminosity
 
     denominator =
@@ -162,8 +186,10 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.adiabatic_gradient(1.989e30, 6.957e8) < 0
       true
   """
+
   @spec adiabatic_gradient(number, number, number, number) :: float
-  def adiabatic_gradient(mass_interior, radius, mu \\ 0.62, gamma \\ 5 / 3) do
+  def adiabatic_gradient(mass_interior, radius, mu \\ 0.62, gamma \\ 5 / 3)
+      when is_positive(radius) do
     m_h = 1.6735575e-27
 
     -(gamma - 1) / gamma * (mu * m_h / @boltzmann) *
@@ -187,6 +213,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.convectively_unstable?(2.0e-4, 1.0e-4)
       true
   """
+
   @spec convectively_unstable?(number, number) :: boolean
   def convectively_unstable?(grad_actual, grad_adiabatic) do
     grad_actual > grad_adiabatic
@@ -209,6 +236,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.opacity_electron_scattering() |> Float.round(4)
       0.034
   """
+
   @spec opacity_electron_scattering(number) :: float
   def opacity_electron_scattering(hydrogen_fraction \\ 0.70) do
     0.2 * (1 + hydrogen_fraction)
@@ -235,8 +263,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.kelvin_helmholtz_timescale(1, 1, 1) |> round()
       31_484_441
   """
+
   @spec kelvin_helmholtz_timescale(number, number, number) :: float
-  def kelvin_helmholtz_timescale(mass, radius, luminosity) do
+  def kelvin_helmholtz_timescale(mass, radius, luminosity) when is_positive(mass) do
     m = mass * @solar_mass
     r = radius * @solar_radius
     l = luminosity * @solar_luminosity
@@ -261,8 +290,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.nuclear_timescale(1.0) |> Float.round(-9)
       1.0e10
   """
+
   @spec nuclear_timescale(number) :: float
-  def nuclear_timescale(mass), do: 1.0e10 * :math.pow(mass, -3)
+  def nuclear_timescale(mass) when is_positive(mass), do: 1.0e10 * :math.pow(mass, -3)
 
   @doc """
   Dynamical (free-fall) timescale: τ_dyn = √(R³ / (G M))
@@ -278,8 +308,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.dynamical_timescale(1.0, 1.0) > 0
       true
   """
+
   @spec dynamical_timescale(number, number) :: float
-  def dynamical_timescale(mass, radius) do
+  def dynamical_timescale(mass, radius) when is_positive(mass) do
     m = mass * @solar_mass
     r = radius * @solar_radius
     :math.sqrt(:math.pow(r, 3) / (@gravitational_constant * m))
@@ -300,8 +331,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.main_sequence_lifetime(1.0) |> Float.round(4)
       10.0
   """
+
   @spec main_sequence_lifetime(number, number) :: float
-  def main_sequence_lifetime(mass, t_sun_gyr \\ 10.0) do
+  def main_sequence_lifetime(mass, t_sun_gyr \\ 10.0) when is_positive(mass) do
     luminosity = mass_luminosity(mass)
     t_sun_gyr * mass / luminosity
   end
@@ -320,8 +352,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.gravitational_potential_energy(1.0, 1.0) < 0
       true
   """
+
   @spec gravitational_potential_energy(number, number) :: float
-  def gravitational_potential_energy(mass, radius) do
+  def gravitational_potential_energy(mass, radius) when is_positive(mass) do
     m = mass * @solar_mass
     r = radius * @solar_radius
     -@gravitational_constant * :math.pow(m, 2) / r
@@ -344,8 +377,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.eddington_luminosity(1) |> round()
       32_000
   """
+
   @spec eddington_luminosity(number) :: float
-  def eddington_luminosity(mass) do
+  def eddington_luminosity(mass) when is_positive(mass) do
     4 * :math.pi() * @gravitational_constant * mass * @solar_mass *
       @proton_mass * @speed_of_light / @thomson_cross_section / @solar_luminosity
   end
@@ -357,6 +391,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.eddington_mass(32_000.0) |> Float.round(2)
       1.0
   """
+
   @spec eddington_mass(number) :: float
   def eddington_mass(luminosity), do: 3.1e-5 * luminosity
 
@@ -370,8 +405,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.eddington_mass_loss_rate(1.0) > 0
       true
   """
+
   @spec eddington_mass_loss_rate(number) :: float
-  def eddington_mass_loss_rate(mass) do
+  def eddington_mass_loss_rate(mass) when is_positive(mass) do
     l_edd = eddington_luminosity(mass) * @solar_luminosity
 
     l_edd / (@efficiency * :math.pow(@speed_of_light, 2)) *
@@ -399,8 +435,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.stellar_wind_mass_loss(1.0, 100.0, 1000.0) > 0
       true
   """
+
   @spec stellar_wind_mass_loss(number, number, number, number) :: float
-  def stellar_wind_mass_loss(mass, radius, luminosity, eta_r \\ 0.5) do
+  def stellar_wind_mass_loss(mass, radius, luminosity, eta_r \\ 0.5) when is_positive(mass) do
     4.0e-13 * eta_r * luminosity * radius / mass
   end
 
@@ -418,8 +455,10 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.stefan_boltzmann_luminosity(6.957e8, 5778) > 0
       true
   """
+
   @spec stefan_boltzmann_luminosity(number, number) :: float
-  def stefan_boltzmann_luminosity(radius, temperature) do
+  def stefan_boltzmann_luminosity(radius, temperature)
+      when is_positive(radius) and is_positive(temperature) do
     4 * :math.pi() * :math.pow(radius, 2) *
       @stefan_boltzmann * :math.pow(temperature, 4)
   end
@@ -431,8 +470,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.radius_from_luminosity_temperature(3.828e26, 5778) > 0
       true
   """
+
   @spec radius_from_luminosity_temperature(number, number) :: float
-  def radius_from_luminosity_temperature(luminosity, temperature) do
+  def radius_from_luminosity_temperature(luminosity, temperature) when is_positive(temperature) do
     :math.sqrt(
       luminosity /
         (4 * :math.pi() * @stefan_boltzmann * :math.pow(temperature, 4))
@@ -460,8 +500,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.mass_luminosity(10) |> Float.round(4)
       3162.2777
   """
+
   @spec mass_luminosity(number) :: float
-  def mass_luminosity(mass) do
+  def mass_luminosity(mass) when is_positive(mass) do
     cond do
       mass < 0.43 -> 0.23 * :math.pow(mass, 2.3)
       mass < 2 -> 1.0 * :math.pow(mass, 4.0)
@@ -485,8 +526,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.wien_peak_wavelength(5778) |> Float.round(11)
       5.015e-7
   """
+
   @spec wien_peak_wavelength(number) :: float
-  def wien_peak_wavelength(temperature), do: @wien_b / temperature
+  def wien_peak_wavelength(temperature) when is_positive(temperature), do: @wien_b / temperature
 
   @doc """
   Planck spectral radiance B_λ(T) in W m⁻² sr⁻¹ m⁻¹.
@@ -495,14 +537,15 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.planck_function(500.0e-9, 5778) > 0
       true
   """
+
   @spec planck_function(number, number) :: float
-  def planck_function(wavelength, temperature) do
-    h = 6.62607015e-34
+  def planck_function(wavelength, temperature) when is_positive(wavelength) do
+    h = 6.626_070_15e-34
     c = @speed_of_light
     kb = @boltzmann
 
-    2 * h * :math.pow(c, 2) / :math.pow(wavelength, 5) *
-      1 / (:math.exp(h * c / (wavelength * kb * temperature)) - 1)
+    2 * h * c * c /
+      (:math.pow(wavelength, 5) * (:math.exp(h * c / (wavelength * kb * temperature)) - 1))
   end
 
   # ---------------------------------------------------------------------------
@@ -524,8 +567,10 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.jeans_mass(10, 1.0e-17) > 0
       true
   """
+
   @spec jeans_mass(number, number, number) :: float
-  def jeans_mass(temperature, density, mu \\ 2.0) do
+  def jeans_mass(temperature, density, mu \\ 2.0)
+      when is_positive(temperature) and is_positive(density) do
     m_h = 1.6735575e-27
 
     term1 =
@@ -546,8 +591,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.jeans_radius(10, 1.0e-17) > 0
       true
   """
+
   @spec jeans_radius(number, number, number) :: float
-  def jeans_radius(temperature, density, mu \\ 2.0) do
+  def jeans_radius(temperature, density, mu \\ 2.0) when is_positive(temperature) do
     m_h = 1.6735575e-27
 
     :math.sqrt(
@@ -573,6 +619,7 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.chandrasekhar_mass() |> Float.round(4)
       1.4575
   """
+
   @spec chandrasekhar_mass(number) :: float
   def chandrasekhar_mass(mu_e \\ 2.0), do: 5.83 / :math.pow(mu_e, 2)
 
@@ -593,8 +640,9 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.neutron_star_radius() > 0
       true
   """
+
   @spec neutron_star_radius(number) :: float
-  def neutron_star_radius(mass \\ 1.4) do
+  def neutron_star_radius(mass \\ 1.4) when is_positive(mass) do
     rho_nuc = 2.3e17
     m_kg = mass * @solar_mass
     :math.pow(3 * m_kg / (4 * :math.pi() * rho_nuc), 1 / 3)
@@ -619,9 +667,10 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.pulsar_spindown_luminosity(0.033, 4.2e-13) > 0
       true
   """
+
   @spec pulsar_spindown_luminosity(number, number, number) :: float
   def pulsar_spindown_luminosity(period, period_deriv, moment_inertia \\ 1.0e38) do
-    4 * :math.pi() ** 2 * moment_inertia * period_deriv / :math.pow(period, 3)
+    4 * :math.pow(:math.pi(), 2) * moment_inertia * period_deriv / :math.pow(period, 3)
   end
 
   @doc """
@@ -641,37 +690,10 @@ defmodule AstroEquations.AstrophysicsAndAstronomy.Stars do
       iex> Stars.pulsar_characteristic_age(0.033, 4.2e-13) > 0
       true
   """
+
   @spec pulsar_characteristic_age(number, number) :: float
+
   def pulsar_characteristic_age(period, period_deriv) do
     period / (2 * period_deriv)
-  end
-
-  @doc """
-  Returns the **reduced Planck constant (ħ)**.
-
-  The reduced Planck constant is defined as:
-
-      ħ = h / (2π)
-
-  where `h` is the Planck constant.
-
-  It is widely used in:
-
-  - Quantum mechanics
-  - Quantum field theory
-  - Atomic physics
-
-  Value:
-
-      ħ ≈ 1.054571817 × 10⁻³⁴ J·s
-
-  ## Examples
-
-      iex> AstroEquations.AstrophysicsAndAstronomy.Stars.reduced_planck_constant()
-      1.054571817e-34
-  """
-  @spec reduced_planck_constant() :: float
-  def reduced_planck_constant do
-    @hbar
   end
 end
